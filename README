@@ -1,0 +1,39 @@
+# PyPatt
+
+Python Pattern Matching. Introduces two new keywords to the Python
+programming language:
+
+* match_stmt = match <expr>:
+* like_stmt = like <expr>:
+
+Limitations abound. But it's still useful and really cool as a
+proof-of-concept project.
+
+* See https://github.com/dropbox/pyxl for the codec inspiration.
+
+# Notes
+
+* Make sure "import pypatt" is in your site.py file.
+* Make sure "# coding: pypatt" is the first line in your Python file.
+* Only 'True'/'False' match booleans (no type coercion).
+* '_' matches anything even if already defined in locals or globals.
+
+# TODO
+
+* Use Ellipsis to mean ... match anything in the rest of this list or tuple.
+
+match [1, 2, 3, 4]:
+    like [1, 2, Ellipsis]:
+        print 'Ellipsis matched 3, 4.'
+
+* Support value as iterable?
+
+match iter([1, 2, 3, 4]):
+    like [1, 2, Ellipsis, tail]:
+        return tail # This is the iterator pointing at 3
+
+* Emacs mode based on Python which recognizes the 'match' and 'like' keywords.
+* Match Set or Dict expression?
+* Support object matching?
+* Support Attribute lookup e.g. "TypeName.Attr"?
+* Support function calls?
