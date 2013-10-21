@@ -1,7 +1,29 @@
 # PyPatt
 
-Python Pattern Matching. Introduces two new keywords to the Python
-programming language:
+Python Pattern Matching.
+
+```python
+def test_demo():
+    values = [[1, 2, 3], ('a', 'b', 'c'), 'hello world',
+        False, [4, 5, 6], (1, ['a', True, (0, )], 3)]
+
+    for value in values:
+        match value:
+            like 'hello world':
+                print 'Match strings!'
+            like False:
+                print 'Match booleans!'
+            like [1, 2, 3]:
+                print 'Match lists!'
+            like ('a', 'b', 'c'):
+                print 'Match tuples!'
+            like [4, 5, temp]:
+                print 'Bind variables! temp =', temp
+            like (1, ['a', True, result], 3):
+                print 'Supports nesting! result =', result
+```
+
+Introduces two new keywords to the Python programming language:
 
 * match_stmt = match <expr>:
 * like_stmt = like <expr>:
@@ -49,7 +71,11 @@ proof-of-concept project.
 
 # Testing
 
-* Python 2.7 on Win32
+* Requires 'nose'
+
+## Passing
+
+* Python 2.7 (r27:82525, Jul  4 2010, 09:01:59) [MSC v.1500 32 bit (Intel)] on win32
 
 # TODO
 
