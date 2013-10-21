@@ -19,12 +19,14 @@ proof-of-concept project.
 * Only 'True'/'False' match booleans (no type coercion).
 * '_' matches anything even if already defined in locals or globals and binds
   to the last matched item. For example:
+
 ```python
     _ = 'test'
     match value:
         like [_, _]:
             print 'match'
 ```
+
   will match all lists of length 2 and '_' will be bound to the
   item in value[1].
 * Beware of matching variables in a loop like:
