@@ -1,19 +1,8 @@
 # coding: pypatt
 
-"""
 # Test Basic Functionality
 
-## Output
-
-<code>
-one
-2 3
-4 5
-[6, 7]
-correct
-correct
-</code>
-"""
+import nose
 
 values = [
     1,
@@ -22,24 +11,40 @@ values = [
     [6, 7],
 ]
 
-for value in values:
-    match value:
-        like 1:
-            print 'one'
-        like [True, var1, var2, 4]:
-            print var1, var2
-        like [(pos, name), 'hello', 6]:
-            print pos, name
-        like _:
-            print _
-            match [1, True, '3', 4]:
-                like [1, False, '3', val]:
-                    print 'wrong'
-                like _:
-                    print 'correct'
+answers = [
+    'one',
+    (2, 3),
+    (4, 5),
+    [6, 7],
+    'correct',
+    'correct'
+]
 
-match [1, True, '3', 4]:
-    like [1, False, '3', val]:
-        print 'wrong'
-    like _:
-        print 'correct'
+def make_matches():
+    for value in values:
+        match value:
+            like 1:
+                yield 'one'
+            like [True, var1, var2, 4]:
+                yield var1, var2
+            like [(pos, name), 'hello', 6]:
+                yield pos, name
+            like _:
+                yield _
+                match [1, True, '3', 4]:
+                    like [1, False, '3', val]:
+                        yield 'wrong'
+                    like _:
+                        yield 'correct'
+    match [1, True, '3', 4]:
+        like [1, False, '3', val]:
+            yield 'wrong'
+        like _:
+            yield 'correct'
+
+def test_basic():
+    for value, answer in zip(make_matches(), answers):
+        assert value == answer
+
+if __name__ == '__main__':
+    nose.run()

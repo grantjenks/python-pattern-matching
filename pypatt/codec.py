@@ -27,12 +27,19 @@ except:
     raise
 """
 
+import logging
+
+# Change WARNING to DEBUG for a trace.
+
+logging.basicConfig(level=logging.WARNING)
+
 import tokenize
 import codecs, encodings
 
 try:
     import cStringIO as StringIO
 except:
+    logging.info('cStringIO not found')
     import StringIO
 
 from encodings import utf_8
@@ -41,6 +48,8 @@ def tokstr(value):
     return list(tokenize.generate_tokens(StringIO.StringIO(value).readline))[:-1]
 
 def translate(readline):
+    logging.debug('START TRANSLATE')
+
     uniq = 0
 
     def match():
@@ -52,8 +61,10 @@ def translate(readline):
     try:
         tokens = list(tokenize.generate_tokens(readline))
 
-        from pprint import pprint
-        pprint(tokens)
+        logging.debug('START TOKENS')
+        for token in tokens:
+            logging.debug(token)
+        logging.debug('END TOKENS')
 
         # index maintains our position in the tokens list. Eventually this
         # should just consume on-demand from the generator.
@@ -151,8 +162,9 @@ def translate(readline):
 
             elif toknum == tokenize.INDENT:
 
-                pprint('Processing INDENT. Stack:')
-                pprint(stack)
+                logging.debug('Processing INDENT. Stack:')
+                for temp in stack:
+                    logging.debug(temp)
 
                 yield toknum, tokval
                 stack.append(('skip', tokval))
@@ -163,8 +175,9 @@ def translate(readline):
                 # inserting coding at the end of the '__body__'. The DEDENT
                 # token shows us where based on the 'kind'.
 
-                pprint('Processing DEDENT. Stack:')
-                pprint(stack)
+                logging.debug('Processing DEDENT. Stack:')
+                for temp in stack:
+                    logging.debug(temp)
 
                 kind, level = stack.pop()[:2]
 
@@ -198,13 +211,16 @@ class StreamReader(utf_8.StreamReader):
     def __init__(self, *args, **kwargs):
         codecs.StreamReader.__init__(self, *args, **kwargs)
         data = tokenize.untokenize(translate(self.stream.readline))
-        print 'Result'
-        print data
+        logging.debug('START RESULT')
+        logging.debug(data)
+        logging.debug('END RESULT')
         self.stream = StringIO.StringIO(data)
 
 def processor(coding):
     if coding != 'pypatt':
         return None
+
+    logging.debug('CODING: PYPATT')
 
     utf8 = encodings.search_function('utf8')
 
@@ -218,3 +234,8 @@ def processor(coding):
         streamwriter = utf8.streamwriter)
 
 codecs.register(processor)
+
+if __name__ == '__main__':
+    import fileinput
+    print tokenize.untokenize(
+        translate(iter(fileinput.input()).next))

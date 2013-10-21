@@ -1,2 +1,5 @@
 # Python byte-code
 *.py[co]
+
+# Python virtualenv directories.
+py27/

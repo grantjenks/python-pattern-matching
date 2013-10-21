@@ -85,6 +85,12 @@ def __patt_bind(value, lexpr, globs, locs):
                     raise MismatchException
             else:
                 raise MismatchException
+        elif isinstance(node, astName) and node.id in bound:
+            if isinstance(value, type(bound[node.id])):
+                if bound[node.id] != value:
+                    raise MismatchException
+            else:
+                raise MismatchException
         elif isinstance(node, astName):
             bound[node.id] = value
         else:
