@@ -31,6 +31,7 @@ proof-of-concept project.
   item in value[1].
 * Beware of matching variables in a loop like:
 
+```python
     for value in xrange(5):
         match value:
             like 1:
@@ -41,6 +42,7 @@ proof-of-concept project.
                 # the first iteration will bind 'value' to 0 and
                 # the third iteration will not match 'value'.
                 del value
+```
 
 * 'exec' is used to insert bound variables into the local scope. In Python
   2.* 'exec' may not be used with nested functions.
@@ -53,21 +55,27 @@ proof-of-concept project.
 
 * Add "as" syntax:
 
+```python
     match list(generator) as items:
         like [1, 2, 3, 4]:
             print items
+```
 
 * Use Ellipsis to mean ... match anything in the rest of this list or tuple.
 
+```python
     match [1, 2, 3, 4]:
         like [1, 2, Ellipsis]:
             print 'Ellipsis matched 3, 4.'
+```
 
 * Support value as iterable?
 
+```python
     match iter([1, 2, 3, 4]):
         like [1, 2, Ellipsis, tail]:
             return tail # This is the iterator pointing at 3
+```
 
 * Emacs mode based on Python which recognizes the 'match' and 'like' keywords.
 * Match dict expression (require bound keys, allow Ellipsis)
@@ -75,8 +83,10 @@ proof-of-concept project.
 * Support function calls
 * Add "when" syntax like:
 
+```python
     match list_item:
         like [first, second] when first < second:
             print 'ascending'
         like [first, second] when first > second:
             print 'descending'
+```
