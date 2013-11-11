@@ -116,3 +116,22 @@ proof-of-concept project.
         like [first, second] when first > second:
             print 'descending'
 ```
+
+## Add Codec Tools
+
+* As a module:
+
+```python
+python -m codectools --codec pypatt --exec program.py
+```
+
+Includes pypatt codec before exec'ing program.py. So that the codec doesn't have to be put in the site.py file during development.
+
+* As a codec:
+
+```python
+# coding: codectools
+# usecodecs: pyxl pypatt
+```
+
+This will run the code first through the pyxl codec and then through the pypatt codec.
