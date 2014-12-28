@@ -2,4 +2,4 @@
 *.py[co]
 
 # Python virtualenv directories.
-py27/
+env27/
