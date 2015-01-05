@@ -1,3 +1,37 @@
+import pypatt
+
+def match_basic(value):
+    with match(value):
+        with True:
+            return 'True'
+        with 10:
+            return '10'
+        with 'abc':
+            return 'abc'    
+        with [False, 0]:
+            return '[False, 0]'
+        with ('blah', True, 10):
+            return 'triple'
+        with (0, [1, (2, [3, (4,)])]):
+            return 'nested'
+        # todo name
+        # todo quote
+
+def match_many(value):
+    # nest match statements on multiple levels
+
+def match_method(value):
+    # decorate class method
+
+def match_as(value):
+    # use with match(expr) _as name_: syntax
+
+def match_bind(value):
+    # test binding the same variable
+
+def test():
+    pass
+
 from pypatt import uncompile, recompile
 from types import FunctionType, CodeType
 

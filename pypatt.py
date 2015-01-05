@@ -1,28 +1,13 @@
 """
-# Notes
+# PyPatt - Python Pattern Matching
 
-* pypatt.transform must be inner-most decorator
-* Does not support lambda functions
-* Does not work on nested functions
-* Requires inspect.getsource to work
+## Development
+
 * `uncompile`, `recompile`, and `parse_snippet` based on
   http://code.activestate.com/recipes/578353-code-to-source-and-back/
-  Written by Oren Tirosh. Shared with MIT License.
-
-# Development
-
-* Ast pretty-printer
-  http://svn.python.org/projects/python/trunk/Demo/parser/unparse.py
-
-Things to Test
-
-* nested with(match...
-* multiple with(match...
-* decorating class method
-* match expressions: tuple, list, constants, regexp
-* with ... as name
-
-
+  Written by Oren Tirosh. Dec 1, 2012. Shared with MIT License.
+* An AST pretty-printer can be pretty useful. I had good luck
+  with https://pypi.python.org/pypi/astunparse/
 """
 
 import ast, inspect, re
@@ -243,7 +228,7 @@ def is_with_match(node, match):
     return expr.args[0]
 
 class MatchTransformVisitor(ast.NodeTransformer):
-    def __init__(self, match, quote, module):
+    def __init__(self, match='match', quote='quote', module='pypatt'):
         self.count = count()
         self.module = module
         self.match = match
@@ -352,16 +337,13 @@ class MatchTransformVisitor(ast.NodeTransformer):
 
         return stmt
 
-def transform(func=None, match='match', quote='quote', module='pypatt'):
+def transform(func=None, visitor=MatchTransformVisitor, **kwargs):
     if func is None:
-        return partial(transform, match=match, quote=quote, module=module)
+        return partial(transform, visitor=visitor, **kwargs)
     else:
         parts = list(uncompile(func.func_code))
         root = parse_snippet(*parts[:-1])
-        # Unparser(root)
-        mtv = MatchTransformVisitor(match, quote, module)
-        root = mtv.visit(root)
-        # Unparser(root)
+        root = visitor(**kwargs).visit(root)
         ast.fix_missing_locations(root)
         parts[0] = root
         func.func_code = recompile(*parts)
