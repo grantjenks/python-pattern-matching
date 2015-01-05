@@ -19,15 +19,19 @@ def match_basic(value):
 
 def match_many(value):
     # nest match statements on multiple levels
+    pass
 
 def match_method(value):
     # decorate class method
+    pass
 
 def match_as(value):
     # use with match(expr) _as name_: syntax
+    pass
 
 def match_bind(value):
     # test binding the same variable
+    pass
 
 def test():
     pass
@@ -75,6 +79,9 @@ def test_roundtrip():
             errors += 1
 
         print '\r%d successful roundtrip, %d failed roundtrip, %d unsupported, %d nosource ' % (success, failed, unsupported, errors),
+
+    if errors > 0:
+        raise Exception
 
 if __name__ == '__main__':
     test_roundtrip()
