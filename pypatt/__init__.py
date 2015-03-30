@@ -350,7 +350,7 @@ def transform(func=None, visitor=MatchTransformVisitor, **kwargs):
         return func
 
 __title__ = 'pypatt'
-__version__ = '0.1'
+__version__ = '0.1.0'
 __build__ = 0x000100
 __author__ = 'Grant Jenks'
 __license__ = 'Apache 2.0'
