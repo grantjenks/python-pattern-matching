@@ -348,3 +348,10 @@ def transform(func=None, visitor=MatchTransformVisitor, **kwargs):
         parts[0] = root
         func.func_code = recompile(*parts)
         return func
+
+__title__ = 'pypatt'
+__version__ = '0.1'
+__build__ = 0x000100
+__author__ = 'Grant Jenks'
+__license__ = 'Apache 2.0'
+__copyright__ = 'Copyright 2015 Grant Jenks'
