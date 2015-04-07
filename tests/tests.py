@@ -132,10 +132,10 @@ def test_roundtrip():
             errors += 1
 
         message = (
-            '\r{} successful roundtrip,'
-            ' {} failed roundtrip,'
-            ' {} unsupported,'
-            ' {} nosource'
+            '\r{0} successful roundtrip,'
+            ' {1} failed roundtrip,'
+            ' {2} unsupported,'
+            ' {3} nosource'
         ).format(success, failed, unsupported, errors)
 
         print(message, end='')
