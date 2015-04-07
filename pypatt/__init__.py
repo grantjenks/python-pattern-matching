@@ -46,7 +46,6 @@ def uncompile(cobj):
     return source, filename, 'exec', flags, firstlineno, privateprefix
 
 def recompile(source, filename, mode, flags=0, lineno=1, prefix=None):
-
     if isinstance(source, ast.AST):
         root = source
     else:
@@ -227,9 +226,11 @@ def is_with_match(node, match):
         return False
     return expr.args[0]
 
+counter = count()
+
 class MatchTransformVisitor(ast.NodeTransformer):
     def __init__(self, match='match', quote='quote', module='pypatt'):
-        self.count = count()
+        self.count = counter
         self.module = module
         self.match = match
         self.quote = quote

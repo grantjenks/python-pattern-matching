@@ -1,25 +1,74 @@
+from __future__ import print_function
+
 import pypatt
 
+@pypatt.transform
 def match_basic(value):
+    other_value = 20
+
     with match(value):
         with True:
             return 'True'
         with 10:
             return '10'
         with 'abc':
-            return 'abc'    
+            return 'abc'
         with [False, 0]:
             return '[False, 0]'
         with ('blah', True, 10):
             return 'triple'
         with (0, [1, (2, [3, (4,)])]):
             return 'nested'
-        # todo name
-        # todo quote
+        with other_value:
+            return '20'
+        with quote(result):
+            return result
 
+def test_basic():
+    values = (
+        (True, 'True'),
+        (10, '10'),
+        ('abc', 'abc'),
+        ([False, 0], '[False, 0]'),
+        (('blah', True, 10), 'triple'),
+        ((0, [1, (2, [3, (4,)])]), 'nested'),
+        (20, '20'),
+        (12345, 12345),
+    )
+    for value, result in values:
+        assert match_basic(value) == result
+
+@pypatt.transform
 def match_many(value):
-    # nest match statements on multiple levels
-    pass
+    with match(value % 2):
+        with 0:
+            with match(value):
+                with 2:
+                    return '2'
+                with 4:
+                    return '4'
+                with quote(_):
+                    return '?'
+        with 1:
+            with match(value):
+                with 1:
+                    return '1'
+                with 3:
+                    return '3'
+                with quote(_):
+                    return '$'
+
+def test_many():
+    values = (
+        (0, '?'),
+        (1, '1'),
+        (2, '2'),
+        (3, '3'),
+        (4, '4'),
+        (5, '$'),
+    )
+    for value, result in values:
+        assert match_many(value) == result
 
 def match_method(value):
     # decorate class method
@@ -33,16 +82,13 @@ def match_bind(value):
     # test binding the same variable
     pass
 
-def test():
-    pass
-
 from pypatt import uncompile, recompile
 from types import FunctionType, CodeType
 
 def test_roundtrip():
     import os
 
-    print 'Importing everything in the medicine cabinet:'
+    print('Importing everything in the medicine cabinet:')
     for filename in os.listdir(os.path.dirname(os.__file__)):
         name, ext = os.path.splitext(filename)
         if ext != '.py' or name == 'antigravity':
@@ -50,10 +96,10 @@ def test_roundtrip():
         try:
             __import__(name)
         except ImportError:
-            pass    # some stuff in system library can't be imported
-    print 'Done importing. We apologize for the noise above.\n'
+            pass
+    print('Done importing. We apologize for the noise above.')
 
-    print 'Round-tripping functions to source code and back:'
+    print('Round-tripping functions to source code and back:')
     success = 0
     failed = 0
     unsupported = 0
@@ -63,25 +109,42 @@ def test_roundtrip():
     allfuncs = [obj for obj in gc.get_objects() if type(obj) is FunctionType]
 
     for func in allfuncs:
-        c = func.func_code
-        if type(c) is not CodeType:
-            continue    # PyPy builtin-code
+        code = func.func_code
+        if type(code) is not CodeType:
+            continue # PyPy builtin-code
 
         try:
-            rc = recompile(*uncompile(c))
-            if c == rc:
+            recode = recompile(*uncompile(code))
+            if code == recode:
                 success += 1
             else:
+                import dis
+                print('<FAILED>', func.func_name)
+                print('<BEFORE>')
+                dis.dis(code)
+                print('<AFTER>')
+                dis.dis(recode)
+                print('</FAILED>')
                 failed += 1
-        except RuntimeError as exc:
+        except RuntimeError:
             unsupported += 1
         except IOError:
             errors += 1
 
-        print '\r%d successful roundtrip, %d failed roundtrip, %d unsupported, %d nosource ' % (success, failed, unsupported, errors),
+        message = (
+            '\r{} successful roundtrip,'
+            ' {} failed roundtrip,'
+            ' {} unsupported,'
+            ' {} nosource'
+        ).format(success, failed, unsupported, errors)
+
+        print(message, end='')
+
+    print('')
 
     if errors > 0:
         raise Exception
 
 if __name__ == '__main__':
-    test_roundtrip()
+    import nose
+    nose.runmodule()

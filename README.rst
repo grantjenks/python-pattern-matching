@@ -182,6 +182,8 @@ Development
 TODO
 ----
 
+- Improve debug-ability: write source to temporary file and modify code object
+  accordingly. Change co_filename and co_firstlineno to temporary file?
 - Support/test Python 2.6, Python 3 and PyPy 2 / 3
 - Support ellipsis-like syntax to match anything in the rest of the list or
   tuple. Consider using ``quote(*args)`` to mean zero or more elements. Elements
