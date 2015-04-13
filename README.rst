@@ -159,6 +159,12 @@ Alternatives
   - multi-dispatch
 - http://www.pyret.org/
   - It's own language
+- https://pypi.python.org/pypi/PEAK-Rules
+  - generic multi-dispatch style for business rules
+- http://home.in.tum.de/~bayerj/patternmatch.py
+  - Pattern-object idea (no binding)
+- https://github.com/admk/patmat
+  - multi-dispatch style
 
 Development
 -----------
@@ -182,9 +188,54 @@ Development
 TODO
 ----
 
+- Should this module just be a function like:
+
+::
+
+    def bind(object, expression):
+        """Attempt to bind object to expression.
+        Expression may contain `bind.name`-style attributes which will bind the
+        `name` in the callers context.
+        """
+        pass # todo
+
+  What if just returned a mapping with the bindings and something
+  like bind.result was available to capture the latest expression.
+  For nested calls, bind.results could be a stack. Then the `like` function
+  call could just return a Like object which `bind` recognized specially.
+  Alternately `bind.results` could work using `with` statement to create
+  the nested scope.
+
+::
+
+    if bind(r'<a href="(.*)">', text):
+        match = bind.result
+        print match.groups(1)
+    elif bind([bind.name, 0], [5, 0]):
+        pass
+
+  Change signature to `bind(object, pattern)` and make a Pattern object. If
+  the second argument is not a pattern object, then it is made into one
+  (if necessary). Pattern objects should support `__contains__`.
+
+  `bind` could also be a decorator in the style of oh-so-many multi-dispatch
+  style pattern matchers.
+
+  To bind anything, use bind.any or bind.__ as a place-filler that does not
+  actually bind to values.
+
+- Add like(...) function-call-like thing and support the following:
+  like(type(obj)) check isinstance
+  like('string') checks regex
+  like(... callable ...) applies callable, binds truthy
+- Add __ (two dunders) for place-holder
+- Add match(..., fall_through=False) to prevent fall_through
+- Use bind.name rather than quote(name)
 - Improve debug-ability: write source to temporary file and modify code object
   accordingly. Change co_filename and co_firstlineno to temporary file?
 - Support/test Python 2.6, Python 3 and PyPy 2 / 3
+- Good paper worth referencing on patterns in Thorn:
+  http://hirzels.com/martin/papers/dls12-thorn-patterns.pdf
 - Support ellipsis-like syntax to match anything in the rest of the list or
   tuple. Consider using ``quote(*args)`` to mean zero or more elements. Elements
   are bound to args:

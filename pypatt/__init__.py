@@ -347,6 +347,8 @@ def transform(func=None, visitor=MatchTransformVisitor, **kwargs):
         root = visitor(**kwargs).visit(root)
         ast.fix_missing_locations(root)
         parts[0] = root
+        # import astunparse
+        # print astunparse.unparse(root)
         func.func_code = recompile(*parts)
         return func
 
