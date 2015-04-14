@@ -166,6 +166,15 @@ Alternatives
 - https://github.com/admk/patmat
   - multi-dispatch style
 
+Other Languages
+---------------
+
+- https://msdn.microsoft.com/en-us/library/dd547125.aspx F#
+- https://doc.rust-lang.org/book/patterns.html Rust
+- https://www.haskell.org/tutorial/patterns.html Haskell
+- http://erlang.org/doc/reference_manual/expressions.html#pattern Erlang
+- https://ocaml.org/learn/tutorials/data_types_and_matching.html Ocaml
+
 Development
 -----------
 
@@ -228,6 +237,8 @@ TODO
   like(type(obj)) check isinstance
   like('string') checks regex
   like(... callable ...) applies callable, binds truthy
+- Also make `like` composable with `and` and `or`
+- Add `when` support somehow and somewhere
 - Add __ (two dunders) for place-holder
 - Add match(..., fall_through=False) to prevent fall_through
 - Use bind.name rather than quote(name)

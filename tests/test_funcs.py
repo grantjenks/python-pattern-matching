@@ -2,7 +2,7 @@ from nose.tools import raises
 
 import random
 from collections import namedtuple
-from pypatt.experimental import match, like, bind, bound
+from pypatt import match, like, bind, bound
 
 Point = namedtuple('Point', 'x y z t')
 
@@ -23,7 +23,7 @@ def match_basic(value):
         return 'case-7'
     elif match(value, str('alpha')):
         return 'case-8'
-    elif match(value, bytes('beta')):
+    elif match(value, bytes(b'beta')):
         return 'case-9'
     elif match(value, tuple):
         return 'case-10'
@@ -58,7 +58,7 @@ def test_basic():
         12345678901234567890,
         complex(1, 2),
         str('alpha'),
-        bytes('beta'),
+        bytes(b'beta'),
         Point,
         [5, 6, 7],
         'abc01abc',
@@ -73,7 +73,7 @@ def test_basic():
 
     cases = ['case-' + str(num + 1) for num in range(len(values))]
 
-    results = zip(values, cases)
+    results = list(zip(values, cases))
 
     random.seed(0)
 

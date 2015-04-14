@@ -1,29 +1,37 @@
 from __future__ import print_function
 
 import pypatt
+from pypatt import _cpython2
 
-@pypatt.transform
-def match_basic(value):
-    other_value = 20
+def only_cpython2(func):
+    def do_nothing():
+        pass
+    return func if _cpython2 else do_nothing
 
-    with match(value):
-        with True:
-            return 'True'
-        with 10:
-            return '10'
-        with 'abc':
-            return 'abc'
-        with [False, 0]:
-            return '[False, 0]'
-        with ('blah', True, 10):
-            return 'triple'
-        with (0, [1, (2, [3, (4,)])]):
-            return 'nested'
-        with other_value:
-            return '20'
-        with quote(result):
-            return result
+if _cpython2:
+    @pypatt.transform
+    def match_basic(value):
+        other_value = 20
 
+        with match(value):
+            with True:
+                return 'True'
+            with 10:
+                return '10'
+            with 'abc':
+                return 'abc'
+            with [False, 0]:
+                return '[False, 0]'
+            with ('blah', True, 10):
+                return 'triple'
+            with (0, [1, (2, [3, (4,)])]):
+                return 'nested'
+            with other_value:
+                return '20'
+            with quote(result):
+                return result
+
+@only_cpython2
 def test_basic():
     values = (
         (True, 'True'),
@@ -38,26 +46,28 @@ def test_basic():
     for value, result in values:
         assert match_basic(value) == result
 
-@pypatt.transform
-def match_many(value):
-    with match(value % 2):
-        with 0:
-            with match(value):
-                with 2:
-                    return '2'
-                with 4:
-                    return '4'
-                with quote(_):
-                    return '?'
-        with 1:
-            with match(value):
-                with 1:
-                    return '1'
-                with 3:
-                    return '3'
-                with quote(_):
-                    return '$'
+if _cpython2:
+    @pypatt.transform
+    def match_many(value):
+        with match(value % 2):
+            with 0:
+                with match(value):
+                    with 2:
+                        return '2'
+                    with 4:
+                        return '4'
+                    with quote(_):
+                        return '?'
+            with 1:
+                with match(value):
+                    with 1:
+                        return '1'
+                    with 3:
+                        return '3'
+                    with quote(_):
+                        return '$'
 
+@only_cpython2
 def test_many():
     values = (
         (0, '?'),
@@ -71,21 +81,21 @@ def test_many():
         assert match_many(value) == result
 
 def match_method(value):
-    # decorate class method
+    # todo: decorate class method
     pass
 
 def match_as(value):
-    # use with match(expr) _as name_: syntax
+    # todo: use with match(expr) _as name_: syntax
     pass
 
 def match_bind(value):
-    # test binding the same variable
+    # todo: test binding the same variable
     pass
 
-from pypatt import uncompile, recompile
-from types import FunctionType, CodeType
-
+@only_cpython2
 def test_roundtrip():
+    from pypatt import uncompile, recompile
+    from types import FunctionType, CodeType
     import os
 
     print('Importing everything in the medicine cabinet:')

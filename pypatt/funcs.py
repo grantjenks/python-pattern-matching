@@ -1,4 +1,45 @@
-"""Experimental pattern matching."""
+"""# PyPatt - Function Implementation
+
+## Development
+
+* change bind.any to Anything type
+* todo: bind.many
+  class Many(object):
+      def __init__(self, name, count=slice(None), values=(Anything,)):
+          self.count = count
+          self.values = values
+          self.name = name
+      def __getitem__(self, index):
+          "Index may be any of:
+          name
+          twople ~ (name, slice)
+          threeple ~ (name, slice, value-spec)
+          "
+          # todo
+  many = Many()
+  * Many should have special significance in _sequence_rule which permits
+    binding to multiple values.
+  * To be really powerful, this should support backtracking in the style of
+    regular expressions.
+  * Maybe the third argument to slice could be True / False to indicate greedy
+    or non-greedy matching.
+  * If second argument is a tuple, does that work like a character class and
+    match any of the stated objects? How then to match a tuple? Put it in
+    another tuple!
+  * This is close to supporting the full power of regular languages. If it were
+    possible to `or` expressions (as done with `(A|B)`) then it would be
+    feature-complete.
+    Actually, that's possible with:
+        bind.many(1, (0, 1), 'zeroorone')
+    But could you put a `bind.many` within a `bind.many` like:
+        bind.many(1, (bind.many(:, int), bind.many(:, float)), 'intsorfloats')
+    And does that recurse? So you could have bind.many nested three times over?
+    That sounds pretty difficult to achieve. How does naming of the nested
+    nested groups sound? Lol, Python's regex package has this same difficulty.
+    It's hard to imagine why anyone would create such complex data structure
+    queries and want to express them in this way.
+
+"""
 
 from sys import hexversion
 from collections import namedtuple, Sequence
@@ -130,33 +171,11 @@ def _sequence_predicate(matcher, value, pattern):
 if hexversion < 0x03000000:
     from itertools import izip as zip
 
-# todo: support bind.many
-# class Many(object):
-#     def __init__(self, count=slice(None)):
-#         """Initialize Many object.
-
-#         `count` should be a `slice` object such that:
-#             `slice(None, None, None)` - any number of values
-#             `slice(None, 10, None)` - exactly ten values
-#             `slice(0, 10, None)` - zero to ten values (inclusive)
-#             `slice(5, None, None)` - five or more values
-#         The third argument to slice may define a type annotation (a la PEP 484)
-#         """
-#         self.count = count
-#     def __getitem__(self, index):
-#         if isinstance(index, slice):
-#             return self.__class__(count=index)
-#         else:
-#             return self.__class__(count=slice(index))
-# many = Many()
-# # Many should have special significance in _sequence_rule which permits
-# # binding to multiple values.
-
 def _sequence_rule(matcher, value, pattern):
     args = (matcher.visit(one, two) for one, two in zip(value, pattern))
     type_value = type(value)
-    if hasattr(type_value, '_make'):
-        return type_value._make(args)
+    if issubclass(type_value, tuple) and hasattr(type_value, '_make'):
+        return type_value._make(args) # namedtuple case
     else:
         return type_value(args)
 
