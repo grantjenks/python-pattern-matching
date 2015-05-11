@@ -25,8 +25,8 @@ def match_basic(value):
         return 'case-8'
     elif match(value, bytes(b'beta')):
         return 'case-9'
-    elif match(value, tuple):
-        return 'case-10'
+    elif match(value, (1, 2, 3, 4)):
+        return 'case-15'
     elif match(value, [bind.first, bind.second, bind.third]):
         return 'case-11'
     elif match(value, like('^abc..abc$')):
@@ -35,12 +35,12 @@ def match_basic(value):
         return 'case-13'
     elif match(value, Point(0, 0, 0, 0)):
         return 'case-14'
-    elif match(value, (1, 2, 3, 4)):
-        return 'case-15'
     elif match(value, [1, 2, 3, 4]):
         return 'case-16'
     elif match(value, (0, [1, (2, [3, (4, [5])])])):
         return 'case-17'
+    elif match(value, tuple):
+        return 'case-10'
     elif match(value, like(lambda val: val % 19 == 0)):
         return 'case-18'
     elif match(value, object):
@@ -84,7 +84,7 @@ def test_basic():
 
 @raises(AttributeError)
 def test_bind_result():
-    if match(0, bind.result):
+    if match(0, bind._push):
         return 'zero'
     else:
         return 'nonzero'

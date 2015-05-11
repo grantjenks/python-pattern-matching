@@ -14,8 +14,8 @@ if _cpython2:
 from .funcs import match, bind, bound, like
 
 __title__ = 'pypatt'
-__version__ = '0.2.0'
-__build__ = 0x000200
+__version__ = '0.3.0'
+__build__ = 0x000300
 __author__ = 'Grant Jenks'
 __license__ = 'Apache 2.0'
 __copyright__ = 'Copyright 2015 Grant Jenks'
