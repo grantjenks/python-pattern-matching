@@ -1,8 +1,18 @@
 """# PyPatt - Function Implementation
 
+## Notes
+
+* Rather than adding `when` clause, just use `and`
+  match(value, (bind.first, bind.second)) and bound.first < bound.second
+
 ## Development
 
-* change bind.any to Anything type
+* Should anyof(*patterns) be added?
+  * "match(value, anyof('foo', 'bar'))"
+  * Should the short-form of this just override any.__call__?
+* Should allof(*patterns) be added?
+  * "match(value, allof((0, _, _), (_, _, 1)))"
+  * "match(value, (allof(anyof('grant', 'shannon'), bind.name), bind.name))"
 * todo: bind.many
   class Many(object):
       def __init__(self, name, count=slice(None), values=(Anything,)):
@@ -38,6 +48,7 @@
     nested groups sound? Lol, Python's regex package has this same difficulty.
     It's hard to imagine why anyone would create such complex data structure
     queries and want to express them in this way.
+  * Why not instead map patterns to letters and do traditional regex-matching?
 
 """
 
@@ -51,6 +62,20 @@ class Mismatch(Exception):
     pass
 
 ###############################################################################
+# Match anything
+###############################################################################
+
+class Anything(object): pass
+
+def _anything_predicate(matcher, value, pattern):
+    return isinstance(pattern, Anything)
+
+def _anything_rule(matcher, value, pattern):
+    return value
+
+_cases.append(Case('anything', _anything_predicate, _anything_rule))
+
+###############################################################################
 # Match names
 ###############################################################################
 
@@ -58,23 +83,26 @@ Name = namedtuple('Name', 'value')
 
 class Binder(object):
     def __getattr__(self, name):
-        if name == 'result':
-            raise AttributeError("can not bind name 'result'")
-        return Name(name)
+        if name == 'any':
+            return Anything()
+        elif name in ('_push', '_pop', 'restore'):
+            raise AttributeError
+        else:
+            return Name(name)
 
 bind = Binder()
 
 def _name_predicate(matcher, value, pattern):
     return isinstance(pattern, Name)
     
-def _name_rule(matcher, value, pattern):
-    name = pattern.value
-    if name == 'any':
-        return value
-    elif name in matcher.names:
+def _name_store(matcher, name, value):
+    if name in matcher.names:
         if value != matcher.names[name]:
             raise Mismatch
     matcher.names[name] = value
+
+def _name_rule(matcher, value, pattern):
+    _name_store(matcher, pattern.value, value)
     return value
 
 _cases.append(Case('names', _name_predicate, _name_rule))
@@ -83,10 +111,10 @@ _cases.append(Case('names', _name_predicate, _name_rule))
 # Match patterns
 ###############################################################################
 
-Pattern = namedtuple('Pattern', 'pattern')
+Pattern = namedtuple('Pattern', 'pattern name')
 
-def like(pattern):
-    return Pattern(pattern)
+def like(pattern, name='result'):
+    return Pattern(pattern, name)
 
 def _pattern_predicate(matcher, value, pattern):
     return isinstance(pattern, Pattern)
@@ -101,6 +129,7 @@ _pattern_errors = (
 )
 
 def _pattern_rule(matcher, value, pattern):
+    name = pattern.name
     pattern = pattern.pattern
 
     if isinstance(pattern, (str, unicode)):
@@ -117,6 +146,10 @@ def _pattern_rule(matcher, value, pattern):
 
     if not result:
         raise Mismatch
+
+    if name is not None:
+        _name_store(matcher, name, result)
+
     return result
 
 _cases.append(Case('patterns', _pattern_predicate, _pattern_rule))
@@ -126,12 +159,15 @@ _cases.append(Case('patterns', _pattern_predicate, _pattern_rule))
 ###############################################################################
 
 def _type_predicate(matcher, value, pattern):
-    return type(value) == type and type(pattern) == type
+    return type(pattern) == type
 
 def _type_rule(matcher, value, pattern):
-    if not issubclass(value, pattern):
+    if type(value) == type and issubclass(value, pattern):
+        return value
+    elif isinstance(value, pattern):
+        return value
+    else:
         raise Mismatch
-    return value
 
 _cases.append(Case('types', _type_predicate, _type_rule))
 
@@ -208,16 +244,36 @@ class AttrMap(object):
         self._attrs = names
     def __getitem__(self, name):
         return self._attrs[name]
+    def __repr__(self):
+        return repr(self._attrs)
+
+from functools import wraps
 
 class Bounder(object):
     def __init__(self):
-        self._maps = [None]
+        self._maps = []
+    def __getitem__(self, index):
+        return self._maps[index]
     def __getattr__(self, name):
-        return self._maps[-1][name]
-    def push(self, names):
+        return self[-1][name]
+    def __len__(self):
+        return len(self._maps)
+    def __repr__(self):
+        return repr(self._maps)
+    def _push(self, names):
         self._maps.append(AttrMap(names))
-    def pop(self):
+    def _pop(self):
         return self._maps.pop()
+    def restore(self, func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            start = len(self)
+            try:
+                return func(*args, **kwargs)
+            finally:
+                while len(self) > start:
+                    self._pop()
+        return wrapper
 
 bound = Bounder()
 
@@ -225,15 +281,13 @@ bound = Bounder()
 # Match function
 ###############################################################################
 
-def match(value, pattern, push=False, matcher=matcher):
+def match(value, pattern, matcher=matcher):
     try:
         matcher = matcher()
         result = matcher.visit(value, pattern)
         names = matcher.names
-        names['result'] = result
-        if not push:
-            bound.pop()
-        bound.push(names)
+        if names:
+            bound._push(names)
         return True
     except Mismatch:
         return False
