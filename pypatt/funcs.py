@@ -182,7 +182,7 @@ else:
 
 def _literal_predicate(matcher, value, pattern):
     return (
-        isinstance(value, type(pattern))
+        isinstance(pattern, _literal_types)
         and isinstance(value, _literal_types)
     )
 
