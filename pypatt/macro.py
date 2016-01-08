@@ -1,12 +1,12 @@
-"""# PyPatt - Macro Implementation
+"""PyPatt Macro Implementation
 
-## Development
-
-* `uncompile`, `recompile`, and `parse_snippet` based on
-  http://code.activestate.com/recipes/578353-code-to-source-and-back/
-  Written by Oren Tirosh. Dec 1, 2012. Shared with MIT License.
+`uncompile`, `recompile`, and `parse_snippet` based on
+http://code.activestate.com/recipes/578353-code-to-source-and-back/
+Written by Oren Tirosh. Dec 1, 2012. Shared with MIT License.
 
 """
+
+from __future__ import print_function
 
 import ast, inspect, re
 from itertools import count, izip as zip
@@ -336,16 +336,22 @@ class MatchTransformVisitor(ast.NodeTransformer):
 
         return stmt
 
-def transform(func=None, visitor=MatchTransformVisitor, **kwargs):
+def transform(func=None, visitor=MatchTransformVisitor, dump=False, **kwargs):
     if func is None:
         return partial(transform, visitor=visitor, **kwargs)
     else:
         parts = list(uncompile(func.func_code))
+
         root = parse_snippet(*parts[:-1])
         root = visitor(**kwargs).visit(root)
         ast.fix_missing_locations(root)
+
         parts[0] = root
-        # from astunparse import unparse
-        # print unparse(root)
+
+        if dump:
+            from astunparse import unparse
+            print(unparse(root))
+
         func.func_code = recompile(*parts)
+
         return func

@@ -1,4 +1,4 @@
-"""# PyPatt
+"""# PyPatt - Python Pattern Matching
 
 """
 
@@ -13,9 +13,9 @@ if _cpython2:
 
 from .funcs import match, bind, bound, like
 
-__title__ = 'pypatt'
-__version__ = '0.3.1'
-__build__ = 0x000301
+__title__ = 'PyPatt'
+__version__ = '1.3.1'
+__build__ = 0x010301
 __author__ = 'Grant Jenks'
 __license__ = 'Apache 2.0'
-__copyright__ = 'Copyright 2015 Grant Jenks'
+__copyright__ = 'Copyright 2015-2016 Grant Jenks'
