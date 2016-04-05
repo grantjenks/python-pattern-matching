@@ -6,6 +6,7 @@ from patternmatching import match, like, bind, bound
 
 Point = namedtuple('Point', 'x y z t')
 
+
 def match_basic(value):
     if match(value, None):
         return 'case-1'
@@ -48,6 +49,7 @@ def match_basic(value):
     else:
         raise Exception('no match')
 
+
 def test_basic():
     values = [
         None,
@@ -71,7 +73,7 @@ def test_basic():
         list,
     ]
 
-    cases = ['case-' + str(num + 1) for num in range(len(values))]
+    cases = ['case-%s' % (num + 1) for num in range(len(values))]
 
     results = list(zip(values, cases))
 
@@ -82,6 +84,7 @@ def test_basic():
         for value, result in results:
             assert match_basic(value) == result
 
+
 @raises(AttributeError)
 def test_bind_result():
     if match(0, bind._push):
@@ -89,16 +92,20 @@ def test_bind_result():
     else:
         return 'nonzero'
 
+
 def test_bind_any():
     assert match([0, 1, 2], [bind.any, bind.any, bind.any])
+
 
 def test_bind_repeated():
     assert match((0, 0, 1, 1), (bind.zero, bind.zero, bind.one, bind.one))
     assert not match((0, 1), (bind.value, bind.value))
 
+
 def test_bound():
     match(5, bind.value)
     assert bound.value == 5
+
 
 if __name__ == '__main__':
     import nose
