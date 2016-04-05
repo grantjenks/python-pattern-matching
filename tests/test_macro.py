@@ -32,6 +32,7 @@ if pm._cpython2:
             with quote(result):
                 return result
 
+
 @only_cpython2
 def test_basic():
     values = (
@@ -46,6 +47,7 @@ def test_basic():
     )
     for value, result in values:
         assert match_basic(value) == result
+
 
 if pm._cpython2:
     @pm.transform(module='pm')
@@ -68,6 +70,7 @@ if pm._cpython2:
                     with quote(_):
                         return '$'
 
+
 @only_cpython2
 def test_many():
     values = (
@@ -81,17 +84,21 @@ def test_many():
     for value, result in values:
         assert match_many(value) == result
 
+
 def match_method(value):
     # todo: decorate class method
     pass
+
 
 def match_as(value):
     # todo: use with match(expr) _as name_: syntax
     pass
 
+
 def match_bind(value):
     # todo: test binding the same variable
     pass
+
 
 @only_cpython2
 def test_roundtrip():
@@ -154,6 +161,7 @@ def test_roundtrip():
 
     if errors > 0:
         raise Exception
+
 
 if __name__ == '__main__':
     import nose
