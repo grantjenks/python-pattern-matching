@@ -1,5 +1,5 @@
-PyPatt: Python Pattern Matching
-===============================
+Python Pattern Matching
+=======================
 
 Python, I love you. But I'd like you to change. It's not you, it's me. Really.
 See, you don't have pattern matching. But, that's not the root of it. Macros are
@@ -8,7 +8,7 @@ matching. I know you offer me ``if``/``elif``/``else`` statements but I need
 more. I'm going to abuse your ``with`` statements. Guido, et al, I hope you can
 forgive me. This will only hurt a little.
 
-Presenting: PyPatt - pattern matching in Python.
+Presenting: pattern matching in Python.
 
 A lot of people have tried to make this work before. Somehow it didn't take. I
 should probably call this yet-another-python-pattern-matching-module but
@@ -17,15 +17,15 @@ operators and changing codecs. This module started as a codec hack but those are
 hard because they need an ecosystem of emacs-modes, vim-modes and the like to
 really be convenient.
 
-PyPatt takes a different approach. No import hooks, no codecs, no operator
-overloads. Instead, I present a function decorator. Apply ``@pypatt.transform``
-and you're off to the races. Let's take a look:
+Python Pattern Matching takes a different approach. No import hooks, no codecs,
+no operator overloads. Instead, I present a function decorator. Apply
+``@patternmatching.transform`` and you're off to the races. Let's take a look:
 
 ::
 
-    import pypatt
+    import patternmatching
 
-    @pypatt.transform
+    @patternmatching.transform
     def test_demo():
         values = [[1, 2, 3], ('a', 'b', 'c'), 'hello world',
             False, [4, 5, 6], (1, ['a', True, (0,)], 3)]
@@ -103,7 +103,7 @@ stating an ``OrderedDict`` in an expression. Maybe ``OrderedDict{'foo': 20,
 Caveats
 -------
 
-- ``@pypatt.transform`` must be the inner-most decorator.
+- ``@patternmatching.transform`` must be the inner-most decorator.
 - Does not support lambda functions.
 - Does not work on nested functions.
 - Requires inspect.getsource to work.
@@ -116,9 +116,9 @@ Documentation
 
 ::
 
-    import pypatt, math
+    import patternmatching, math
 
-    @pypatt.transform
+    @patternmatching.transform
     def area(shape):
         with match(type(shape)):
             with Triangle:
@@ -184,9 +184,9 @@ Development
 
 ::
 
-    import pypatt
+    import patternmatching
 
-    @pypatt.transform
+    @patternmatching.transform
     def factorial(num):
         with match(num):
             with 1:
@@ -302,45 +302,45 @@ Future?
     def assign(var, value, _globals, _locals):
         exec '{var} = value'.format(var) in _globals, _locals
 
-    @pypatt.macro
+    @patternmatching.macro
     def match(expr, statements):
         """with match(expr): ... expansion
         with match(value / 5):
             ... statements ...
         ->
-        pypatt.store['temp0'] = value / 5
+        patternmatching.store['temp0'] = value / 5
         try:
             ... statements ...
-        except pypatt.PyPattBreak:
+        except patternmatching.PatternmatchingBreak:
             pass
         """
         symbol[temp] = expand[expr]
         try:
             expand[statements]
-        except pypatt.PyPattBreak:
+        except patternmatching.PatternMatchingBreak:
             pass
 
-    @pypatt.macro
+    @patternmatching.macro
     def like(expr, statements):
         """with like(expr): ... expansion
         with like(3 + value):
             ... statements ...
         ->
-        pypatt.store['temp1'] = pypatt.bind(expr, pypatt.store['temp0'], globals(), locals())
-        if pypatt.store['temp1']:
-            for var in pypatt.store['temp1'][1]:
-                assign(var, pypatt.store['temp1'][1][var], globals(), locals())
+        patternmatching.store['temp1'] = patternmatching.bind(expr, patternmatching.store['temp0'], globals(), locals())
+        if patternmatching.store['temp1']:
+            for var in patternmatching.store['temp1'][1]:
+                assign(var, patternmatching.store['temp1'][1][var], globals(), locals())
             ... statements ...
-            raise pypatt.PyPattBreak
+            raise patternmatching.PatternmatchingBreak
         """
-        symbol[result] = pypatt.bind(expr, symbol[match.temp], globals(), locals())
+        symbol[result] = patternmatching.bind(expr, symbol[match.temp], globals(), locals())
         if symbol[result]:
             for var in symbol[result][1]:
                 assign(var, symbol[result][1][var], globals(), locals())
             expand[statements]
-            raise pypatt.PyPattBreak
+            raise patternmatching.PatternmatchingBreak
 
-    @pypatt.expand(match, like)
+    @patternmatching.expand(match, like)
     def test():
         with match('hello' + ' world'):
             with like(1):
@@ -359,20 +359,20 @@ import hook to work.
 Project Links
 -------------
 
-- `PyPatt: Python Pattern Matching @ GrantJenks.com`_
-- `PyPatt @ PyPI`_
-- `PyPatt @ Github`_
+- `PatternMatching: Python Pattern Matching @ GrantJenks.com`_
+- `PatternMatching @ PyPI`_
+- `PatternMatching @ Github`_
 - `Issue Tracker`_
 
-.. _`PyPatt: Python Pattern Matching @ GrantJenks.com`: http://www.grantjenks.com/docs/pypatt/
-.. _`PyPatt @ PyPI`: https://pypi.python.org/pypi/pypatt
-.. _`PyPatt @ Github`: https://github.com/grantjenks/pypatt_python_pattern_matching
-.. _`Issue Tracker`: https://github.com/grantjenks/pypatt_python_pattern_matching/issues
+.. _`PatternMatching: Python Pattern Matching @ GrantJenks.com`: http://www.grantjenks.com/docs/patternmatching/
+.. _`PatternMatching @ PyPI`: https://pypi.python.org/pypi/patternmatching
+.. _`PatternMatching @ Github`: https://github.com/grantjenks/python-pattern-matching
+.. _`Issue Tracker`: https://github.com/grantjenks/python-pattern-matching/issues
 
-PyPatt License
---------------
+Python Pattern Matching License
+-------------------------------
 
-Copyright 2015 Grant Jenks
+Copyright 2016 Grant Jenks
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.

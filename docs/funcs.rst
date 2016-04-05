@@ -1,5 +1,5 @@
-PyPatt Functional Implementation
-================================
+Pattern Matching Functional Implementation
+==========================================
 
 .. todo::
 

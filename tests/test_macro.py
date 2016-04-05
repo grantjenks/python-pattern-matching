@@ -1,15 +1,16 @@
 from __future__ import print_function
 
-import pypatt
-from pypatt import _cpython2
+import patternmatching as pm
+
 
 def only_cpython2(func):
     def do_nothing():
         pass
-    return func if _cpython2 else do_nothing
+    return func if pm._cpython2 else do_nothing
 
-if _cpython2:
-    @pypatt.transform
+
+if pm._cpython2:
+    @pm.transform
     def match_basic(value):
         other_value = 20
 
@@ -47,7 +48,7 @@ def test_basic():
         assert match_basic(value) == result
 
 if _cpython2:
-    @pypatt.transform
+    @pm.transform
     def match_many(value):
         with match(value % 2):
             with 0:
@@ -94,9 +95,8 @@ def match_bind(value):
 
 @only_cpython2
 def test_roundtrip():
-    from pypatt import uncompile, recompile
-    from types import FunctionType, CodeType
     import os
+    from types import FunctionType, CodeType
 
     print('Importing everything in the medicine cabinet:')
     for filename in os.listdir(os.path.dirname(os.__file__)):
@@ -124,7 +124,7 @@ def test_roundtrip():
             continue # PyPy builtin-code
 
         try:
-            recode = recompile(*uncompile(code))
+            recode = pm.recompile(*pm.uncompile(code))
             if code == recode:
                 success += 1
             else:

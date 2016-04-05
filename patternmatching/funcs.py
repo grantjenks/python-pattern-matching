@@ -1,4 +1,6 @@
-"""PyPatt Functional Implementation
+"""Function-based Implementation
+
+Python pattern matching using a function-based approach.
 
 """
 

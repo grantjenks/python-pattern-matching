@@ -2,7 +2,7 @@ from nose.tools import raises
 
 import random
 from collections import namedtuple
-from pypatt import match, like, bind, bound
+from patternmatching import match, like, bind, bound
 
 Point = namedtuple('Point', 'x y z t')
 

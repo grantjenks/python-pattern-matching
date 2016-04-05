@@ -1,4 +1,6 @@
-"""PyPatt Macro Implementation
+"""Macro-based Implementation
+
+Python pattern matching using a macro-based approach.
 
 `uncompile`, `recompile`, and `parse_snippet` based on
 http://code.activestate.com/recipes/578353-code-to-source-and-back/
@@ -109,7 +111,7 @@ def parse_snippet(source, filename, mode, flags, firstlineno):
 
 store = dict()
 
-class PyPattBreak(Exception):
+class PatternMatchingBreak(Exception):
     pass
 
 def trybind(quote, expr, value, globs, locs):
@@ -227,14 +229,14 @@ def is_with_match(node, match):
 counter = count()
 
 class MatchTransformVisitor(ast.NodeTransformer):
-    def __init__(self, match='match', quote='quote', module='pypatt'):
+    def __init__(self, match='match', quote='quote', module='patternmatching'):
         self.count = counter
         self.module = module
         self.match = match
         self.quote = quote
 
     def temp_name(self):
-        return 'pypatt_temp_' + str(next(self.count))
+        return 'patternmatching_temp_' + str(next(self.count))
 
     def visit_With(self, node):
         expr = is_with_match(node, self.match)
@@ -252,7 +254,7 @@ class MatchTransformVisitor(ast.NodeTransformer):
             raise RuntimeError(msg.format(self.match))
 
         stmt = ast.parse(
-            'try:\n    pass\nexcept {module}.PyPattBreak:\n    pass'.format(
+            'try:\n    pass\nexcept {module}.PatternMatchingBreak:\n    pass'.format(
                 module=self.module
             )
         ).body[0]
@@ -331,7 +333,7 @@ class MatchTransformVisitor(ast.NodeTransformer):
             if_stmt.body.extend(self.visit(temp) for temp in with_stmt.body)
 
             if_stmt.body.append(ast.parse(
-                'raise {module}.PyPattBreak'.format(module=self.module)
+                'raise {module}.PatternMatchingBreak'.format(module=self.module)
             ).body[0])
 
         return stmt

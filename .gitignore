@@ -9,5 +9,5 @@
 
 # setup sdist, test and upload directories
 /dist/
-/pypatt.egg-info/
+/patternmatching.egg-info/
 /.tox/
