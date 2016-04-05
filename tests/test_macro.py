@@ -129,7 +129,7 @@ def test_roundtrip():
                 success += 1
             else:
                 import dis
-                print('<FAILED>', func.func_name)
+                print('<FAILED>', func.__module__, func.__class__.__name__, func.func_name)
                 print('<BEFORE>')
                 dis.dis(code)
                 print('<AFTER>')
