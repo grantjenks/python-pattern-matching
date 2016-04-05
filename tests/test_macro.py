@@ -10,7 +10,7 @@ def only_cpython2(func):
 
 
 if pm._cpython2:
-    @pm.transform
+    @pm.transform(module='pm')
     def match_basic(value):
         other_value = 20
 
@@ -47,8 +47,8 @@ def test_basic():
     for value, result in values:
         assert match_basic(value) == result
 
-if _cpython2:
-    @pm.transform
+if pm._cpython2:
+    @pm.transform(module='pm')
     def match_many(value):
         with match(value % 2):
             with 0:
