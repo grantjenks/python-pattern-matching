@@ -49,9 +49,6 @@ either('0', maybe('-') + nonzero + digit * repeat)
 from collections import namedtuple
 from functools import partial
 
-# todo: change to relative import
-from funcs import Anyone, anyone
-
 
 class _AddMixin(object):
     def __add__(self, that):
@@ -59,18 +56,33 @@ class _AddMixin(object):
     def __radd__(self, that):
         return that + Pattern([self])
 
-_Repeat = namedtuple('Repeat', 'pattern min max greedy')
+
+# todo: move anyone to funcs.py
+
+class Anyone(_AddMixin):
+    def __str__(self):
+        return 'Anyone'
+    def __repr__(self):
+        return 'Anyone()'
+
+anyone = Anyone()
+
+_Repeat = namedtuple('Repeat', 'min max greedy pattern')
 
 infinity = float('inf')
 
 class Repeat(_AddMixin, _Repeat):
-    def __call__(self, pattern=None, min=0, max=infinity, greedy=True):
-        return type(self)(pattern=pattern, min=min, max=max, greedy=greedy)
+    def __call__(self, min=0, max=infinity, greedy=True, pattern=None):
+        return type(self)(min=min, max=max, greedy=greedy, pattern=pattern)
     def __rmul__(self, that):
-        return self(that, self.min, self.max, self.greedy)
+        if isinstance(that, Anyone):
+            that = (that,)
+        return self(self.min, self.max, self.greedy, that)
 
-repeat = Repeat(None, 0, infinity, True)
-maybe = partial(repeat, min=0, max=1, greedy=True)
+repeat = Repeat(0, infinity, True, None)
+maybe = repeat(min=0, max=1)
+
+# todo: add checks so that patterns are not None and not zero-length
 
 _Group = namedtuple('Group', 'pattern name')
 
@@ -98,7 +110,17 @@ def exclude(*options):
     return Exclude(options)
 
 
-def match(pattern, sequence, index=0, offset=0, count=0, groups={}):
+def match(pattern, sequence):
+    if isinstance(pattern, (Repeat, Group, Either, Exclude, Anyone)):
+        pattern = Pattern((pattern,))
+
+    groups = {}
+
+    for end in _match(pattern, sequence, groups=groups):
+        groups['_'] = sequence[:end]
+        return groups
+
+def _match(pattern, sequence, index=0, offset=0, count=0, groups={}):
     len_pattern = len(pattern)
     len_sequence = len(sequence)
 
@@ -106,50 +128,10 @@ def match(pattern, sequence, index=0, offset=0, count=0, groups={}):
         yield offset
         return
 
-    # todo: change to do-while loop
-
-    item = pattern[index]
-
-    if isinstance(item, Repeat):
-        if count > item.max:
-            return
-
-        if item.greedy:
-            for end in match(item.pattern, sequence, 0, offset):
-                for stop in match(pattern, sequence, index, end, count + 1):
-                    yield stop
-
-            if count >= item.min:
-                for stop in match(pattern, sequence, index + 1, offset):
-                    yield stop
-        else:
-            if count >= item.min:
-                for stop in match(pattern, sequence, index + 1, offset):
-                    yield stop
-
-            for end in match(item.pattern, sequence, 0, offset):
-                for stop in match(pattern, sequence, index, end, count + 1):
-                    yield stop
-
+    if offset == len_sequence:
         return
 
-    elif isinstance(item, Group):
-        for end in match(item.pattern, sequence, 0, offset):
-            groups[item.name] = sequence[offset:end]
-            for stop in match(pattern, sequence, index + 1, end):
-                yield stop
-
-        return
-
-    elif isinstance(item, Either):
-        for option in item.options:
-            for end in match(option, sequence, 0, offset):
-                for stop in match(pattern, sequence, index + 1, end):
-                    yield stop
-
-        return
-
-    while index < len_pattern and offset < len_sequence:
+    while True:
         item = pattern[index]
 
         if isinstance(item, Repeat):
@@ -157,51 +139,60 @@ def match(pattern, sequence, index=0, offset=0, count=0, groups={}):
                 return
 
             if item.greedy:
-                for end in match(item.pattern, sequence, 0, offset):
-                    for stop in match(pattern, sequence, index, end, count + 1):
+                for end in _match(item.pattern, sequence, 0, offset):
+                    for stop in _match(pattern, sequence, index, end, count + 1):
                         yield stop
 
                 if count >= item.min:
-                    for stop in match(pattern, sequence, index + 1, offset):
+                    for stop in _match(pattern, sequence, index + 1, offset):
                         yield stop
             else:
                 if count >= item.min:
-                    for stop in match(pattern, sequence, index + 1, offset):
+                    for stop in _match(pattern, sequence, index + 1, offset):
                         yield stop
 
-                for end in match(item.pattern, sequence, 0, offset):
-                    for stop in match(pattern, sequence, index, end, count + 1):
+                for end in _match(item.pattern, sequence, 0, offset):
+                    for stop in _match(pattern, sequence, index, end, count + 1):
                         yield stop
 
             return
 
         elif isinstance(item, Group):
-            for end in match(item.pattern, sequence, 0, offset):
+            for end in _match(item.pattern, sequence, 0, offset):
+                # todo: if item.name is None then don't store in groups
                 groups[item.name] = sequence[offset:end]
-                for stop in match(pattern, sequence, index + 1, end):
+                for stop in _match(pattern, sequence, index + 1, end):
                     yield stop
 
             return
 
         elif isinstance(item, Either):
             for option in item.options:
-                for end in match(option, sequence, 0, offset):
-                    for stop in match(pattern, sequence, index + 1, end):
+                for end in _match(option, sequence, 0, offset):
+                    for stop in _match(pattern, sequence, index + 1, end):
                         yield stop
 
             return
 
         elif isinstance(item, Exclude):
             for option in item.options:
-                for end in match(option, sequence, 0, offset):
+                for end in _match(option, sequence, 0, offset):
                     return
 
+        elif isinstance(item, Anyone):
+            pass
+
         else:
+            # todo: could we use funcs.match rather than testing inequality?
+            # todo: merge this with the `sequences` case in funcs.py
             if item != sequence[offset]:
                 return
 
         index += 1
         offset += 1
+
+        if index >= len_pattern or offset >= len_sequence:
+            break
 
     if index == len_pattern:
         yield offset
