@@ -14,18 +14,20 @@ class Mismatch(Exception):
     pass
 
 ###############################################################################
-# Match anything
+# Match anyone
 ###############################################################################
 
-class Anything(object): pass
+class Anyone(object): pass
 
-def _anything_predicate(matcher, value, pattern):
-    return isinstance(pattern, Anything)
+anyone = Anyone()
 
-def _anything_rule(matcher, value, pattern):
+def _anyone_predicate(matcher, value, pattern):
+    return isinstance(pattern, Anyone)
+
+def _anyone_rule(matcher, value, pattern):
     return value
 
-_cases.append(Case('anything', _anything_predicate, _anything_rule))
+_cases.append(Case('anyone', _anyone_predicate, _anyone_rule))
 
 ###############################################################################
 # Match names
@@ -36,7 +38,7 @@ Name = namedtuple('Name', 'value')
 class Binder(object):
     def __getattr__(self, name):
         if name == 'any':
-            return Anything()
+            return anyone
         elif name in ('_push', '_pop', 'restore'):
             raise AttributeError
         else:
