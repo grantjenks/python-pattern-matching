@@ -8,137 +8,164 @@ https://github.com/python/cpython/blob/master/Lib/test/re_tests.py
 import patternmatching.regex as re
 
 
+a_foo = 'a' * re.group(1)
+abc_e = 'abc' * re.either
+term = 'multiple words'
+b_s = 'b' * re.repeat
+
+def run(*args):
+    args = list(args)
+    result = args.pop()
+    assert re.match(*args) == result
+
 def test_basic():
-    assert re.match('', '') == {'_': ''}
-    assert re.match('abc', 'abc') == {'_': 'abc'}
-    assert re.match('abc', 'xbc') is None
-    assert re.match('abc', 'axc') is None
-    assert re.match('abc', 'abx') is None
-    assert re.match('abc', 'xabc') is None
-    assert re.match('abc', 'xabcy') is None
-    assert re.match('abc', '') is None
+    run('', '', {'_': ''})
+    run('abc', 'abc', {'_': 'abc'})
+    run('abc', 'xbc', None)
+    run('abc', 'axc', None)
+    run('abc', 'abx', None)
+    run('abc', 'xabc', None)
+    run('abc', 'xabcy', None)
+    run('abc', '', None)
+    run(term + ' of text', 'uh-oh', None)
+    run(term, term + ' of text', {'_': term})
 
 
 def test_groups():
-    assert re.match(re.group('a', 'foo'), 'a') == {'_': 'a', 'foo': 'a'}
-    assert re.match(re.group('a', 'foo'), 'aa') == {'_': 'a', 'foo': 'a'}
+    run(a_foo, 'a', {'_': 'a', 1: 'a'})
+    run(a_foo, 'aa', {'_': 'a', 1: 'a'})
+    run(a_foo * re.group(2), 'a', {'_': 'a', 1: 'a', 2: 'a'})
+    run(a_foo * re.group(2) * re.group(3), 'a',
+       {'_': 'a', 1: 'a', 2: 'a', 3: 'a'})
+    run(a_foo + 'b' + 'c' * re.group(2), 'abc',
+        {'_': 'abc', 1: 'a', 2: 'c'})
+    run(re.Group(abc_e, name=1) * re.repeat + 'd', 'abbbcd',
+        {'_': 'abbbcd', 1: 'c'})
+    run(re.Group(abc_e, name=1) * re.repeat + 'bcd', 'abcd',
+        {'_': 'abcd', 1: 'a'})
 
 
 def test_anyone():
-    assert re.match('a' + re.anyone + 'c', 'abc') == {'_': 'abc'}
-    assert re.match('a' + re.anyone * re.repeat + 'c', 'axyzc') == {'_': 'axyzc'}
-    assert re.match('a' + re.anyone * re.repeat + 'c', 'axyzd') is None
-    assert re.match('a' + re.anyone * re.repeat + 'c', 'ac') == {'_': 'ac'}
-    assert re.match('a' + re.anyone * re.repeat(2, 3) + 'c', 'abbc') == {'_': 'abbc'}
-
+    run('a' + re.anyone + 'c', 'abc', {'_': 'abc'})
+    run('a' + re.anything + 'c', 'axyzc', {'_': 'axyzc'})
+    run('a' + re.anything + 'c', 'axyzd', None)
+    run('a' + re.anything + 'c', 'ac', {'_': 'ac'})
+    run('a' + re.anyone * re.repeat(min=2, max=3) + 'c', 'abbc', {'_': 'abbc'})
 
 def test_repeat():
-    assert re.match('a' + 'b' * re.repeat + 'c', 'abc') == {'_': 'abc'}
-    assert re.match('a' + 'b' * re.repeat + 'bc', 'abc') == {'_': 'abc'}
-    assert re.match('a' + 'b' * re.repeat + 'bc', 'abbc') == {'_': 'abbc'}
-    assert re.match('a' + 'b' * re.repeat + 'bc', 'abbbbc') == {'_': 'abbbbc'}
+    run('a' + b_s + 'c', 'abc', {'_': 'abc'})
+    run('a' + b_s + 'bc', 'abc', {'_': 'abc'})
+    run('a' + b_s + 'bc', 'abbc', {'_': 'abbc'})
+    run('a' + b_s + 'bc', 'abbbbc', {'_': 'abbbbc'})
+    run('a' * re.repeat, '', {'_': ''})
+    run('a' * re.repeat, 'a', {'_': 'a'})
+    run('a' * re.repeat, 'aaa', {'_': 'aaa'})
+    run(re.start + 'a' * re.repeat(1) + 'b' + 'c' * re.repeat(1), 'aabbabc',
+        {'_': 'aabbabc'})
+
+
+def test_repeat_range():
+    run('a' + 'b' * re.repeat(1,) + 'bc', 'abbbbc', {'_': 'abbbbc'})
+    run('a' + 'b' * re.repeat(1,3) + 'bc', 'abbbbc', {'_': 'abbbbc'})
+    run('a' + 'b' * re.repeat(3,4) + 'bc', 'abbbbc', {'_': 'abbbbc'})
+    run('a' + 'b' * re.repeat(4,5) + 'bc', 'abbbbc', None)
 
 
 def test_some():
-    some = re.repeat(min=1)
-
-    assert re.match('a' + 'b' * some + 'bc', 'abbc') == {'_': 'abbc'}
-    assert re.match('a' + 'b' * some + 'bc', 'abc') is None
-    assert re.match('a' + 'b' * some + 'bc', 'abq') is None
-    assert re.match('a' + 'b' * some + 'bc', 'abbbbc') == {'_': 'abbbbc'}
+    run('a' + 'b' * re.something + 'bc', 'abbc', {'_': 'abbc'})
+    run('a' + 'b' * re.something + 'bc', 'abc', None)
+    run('a' + 'b' * re.something + 'bc', 'abq', None)
+    run('a' + 'b' * re.something + 'bc', 'abbbbc', {'_': 'abbbbc'})
 
 
 def test_maybe():
-    assert re.match(re.maybe('a'), '') == {'_': ''}
-    assert re.match(re.maybe('a'), 'a') == {'_': 'a'}
-    assert re.match(re.maybe('a'), 'aa') == {'_': 'a'}
-    assert re.match('a' + re.maybe('a'), 'aa') == {'_': 'aa'}
-    assert re.match('a' + re.anyone + 'c' + re.maybe('d'), 'abc') == {'_': 'abc'}
+    run('a' * re.maybe, '', {'_': ''})
+    run('a' * re.maybe, 'a', {'_': 'a'})
+    run('a' * re.maybe, 'aa', {'_': 'a'})
+    run('a' + 'a' * re.maybe, 'aa', {'_': 'aa'})
+    run('a' + re.anyone + 'c' + 'd' * re.maybe, 'abc', {'_': 'abc'})
+    run('a' + 'b' * re.maybe + 'bc', 'abbc', {'_': 'abbc'})
+    run('a' + 'b' * re.maybe + 'bc', 'abc', {'_': 'abc'})
+    run('a' + 'b' * re.repeat(0, 1) + 'bc', 'abc', {'_': 'abc'})
+    run('a' + 'b' * re.maybe + 'bc', 'abbbbc', None)
+    run('a' + 'b' * re.maybe + 'c', 'abc', {'_': 'abc'})
+    run('a' + 'b' * re.repeat(0, 1) + 'c', 'abc', {'_': 'abc'})
 
-"""
-# TODO: Add these tests:
 
-    ('ab?bc', 'abbc', SUCCEED, 'found', 'abbc'),
-    ('ab?bc', 'abc', SUCCEED, 'found', 'abc'),
-    ('ab?bc', 'abbbbc', FAIL),
-    ('ab?c', 'abc', SUCCEED, 'found', 'abc'),
+def test_either():
+    run('a' + 'bc' * re.either + 'd', 'abc', None)
+    run('a' + 'bc' * re.either + 'd', 'abd', {'_': 'abd'})
+    run(('ab', 'cd') * re.either, 'abc', {'_': 'ab'})
+    run(('ab', 'cd') * re.either, 'abcd', {'_': 'ab'})
+    run(re.Either('a' * re.repeat(min=1), 'b') * re.repeat, 'ab', {'_': 'ab'})
+    run(re.Either('a' * re.repeat(min=1), 'b') * re.repeat(min=1), 'ab',
+        {'_': 'ab'})
+    run(re.Either('a' * re.repeat(min=1), 'b') * re.maybe, 'ab', {'_': 'a'})
+    run('abcde' * re.either, 'e', {'_': 'e'})
+    run('abcde' * re.either + 'f', 'ef', {'_': 'ef'})
+    run(re.start + re.Either('ab', 'cd') + 'e', 'abcde', {'_': 'abcde'})
+    run('abhgefdc' * re.either + 'ij', 'hij', {'_': 'hij'})
 
-    ('a[bc]d', 'abc', FAIL),
-    ('a[bc]d', 'abd', SUCCEED, 'found', 'abd'),
 
-    ('a[^bc]d', 'aed', SUCCEED, 'found', 'aed'),
-    ('a[^bc]d', 'abd', FAIL),
+def test_exclude():
+    run('a' + 'bc' * re.exclude + 'd', 'aed', {'_': 'aed'})
+    assert re.match('a' + 'bc' * re.exclude + 'd', 'abd') is None
+    run('ab' * re.exclude * re.repeat, 'cde', {'_': 'cde'})
 
-    ('ab|cd', 'abc', SUCCEED, 'found', 'ab'),
-    ('ab|cd', 'abcd', SUCCEED, 'found', 'ab'),
 
-    ('((a))', 'abc', SUCCEED, 'found+"-"+g1+"-"+g2', 'a-a-a'),
-    ('(((((((((a)))))))))', 'a', SUCCEED, 'found', 'a'),
-    ('(a)b(c)', 'abc', SUCCEED, 'found+"-"+g1+"-"+g2', 'abc-a-c'),
+def test_misc():
+    bc_e_r_g_1 = 'bc' * re.either * re.repeat * re.group(1)
+    bc_e_r_1_g_1 = 'bc' * re.either * re.repeat(min=1) * re.group(1)
 
-    ('a+b+c', 'aabbabc', SUCCEED, 'found', 'abc'),
+    run(re.start + 'ab' * re.either + 'c' * re.repeat + 'd', 'abcd',
+        {'_': 'abcd'})
+    run(('ab', 'a' + b_s) * re.either + 'bc', 'abc', {'_': 'abc'})
+    run('a' + bc_e_r_g_1 + 'c' * re.repeat, 'abc', {'_': 'abc', 1: 'bc'})
+    run('a' + bc_e_r_g_1 + ('c' * re.repeat + 'd') * re.group(2), 'abcd',
+        {'_': 'abcd', 1: 'bc', 2: 'd'})
+    run('a' + bc_e_r_1_g_1 + ('c' * re.repeat + 'd') * re.group(2), 'abcd',
+        {'_': 'abcd', 1: 'bc', 2: 'd'})
+    run('a' + bc_e_r_g_1 + ('c' * re.repeat(min=1) + 'd') * re.group(2),
+        'abcd', {'_': 'abcd', 1: 'b', 2: 'cd'})
+    run('a' + 'bcd' * re.either * re.repeat + 'dcdcde', 'adcdcde',
+        {'_': 'adcdcde'})
+    run('a' + 'bcd' * re.either * re.repeat(min=1) + 'dcdcde', 'adcdcde', None)
+    run(('ab', 'a') * re.either + b_s + 'c', 'abc', {'_': 'abc'})
+    run(re.Group(re.Group('a') + re.Group('b') + re.Group('c')) + re.Group('d'),
+        'abcd', {'_': 'abcd'})
+    run(re.anything * re.group(1) + 'c' + re.anything * re.group(2), 'abcde',
+        {'_': 'abcde', 1: 'ab', 2: 'de'})
+    run('k' * re.either, 'ab', None)
+    run('a' + '-' * re.maybe + 'c', 'ac', {'_': 'ac'})
+    run(re.Either(re.Group('a') + re.Group('b') + 'c', 'ab'), 'ab',
+        {'_': 'ab'})
+    run('a' * re.group * re.repeat(min=1) + 'x', 'aaax', {'_': 'aaax'})
+    run('ac' * re.either * re.group(1) * re.repeat(min=1) + 'x', 'aacx',
+        {'_': 'aacx', 1: 'c'})
+    run(re.Group('/' * re.exclude * re.repeat + '/', 1) * re.repeat + 'sub1/',
+        'd:msgs/tdir/sub1/trial/away.cpp',
+        {'_': 'd:msgs/tdir/sub1/', 1: 'tdir/'})
+    run(('N' * re.exclude * re.repeat + 'N') * re.group(1) * re.repeat(min=1),
+        'abNNxyzN', {'_': 'abNNxyzN', 1: 'xyzN'})
+    run(('N' * re.exclude * re.repeat + 'N') * re.group(1) * re.repeat(min=1),
+        'abNNxyz', {'_': 'abNN', 1: 'N'})
+    run(abc_e * re.repeat * re.group(1) + 'x', 'abcx', {'_': 'abcx', 1: 'abc'})
+    run(abc_e * re.repeat * re.group(1) + 'x', 'abc', None)
+    run(re.start + 'xyz' * re.either * re.repeat * re.group(1) + 'x', 'abcx',
+        {'_': 'abcx', 1: ''})
+    run(re.Either(re.Group('a') * re.repeat(min=1) + 'b', 'aac'), 'aac',
+        {'_': 'aac'})
 
-    ('(a+|b)*', 'ab', SUCCEED, 'found+"-"+g1', 'ab-b'),
-    ('(a+|b)+', 'ab', SUCCEED, 'found+"-"+g1', 'ab-b'),
-    ('(a+|b)?', 'ab', SUCCEED, 'found+"-"+g1', 'a-a'),
 
-    ('[^ab]*', 'cde', SUCCEED, 'found', 'cde'),
+def test_not_greedy():
+    run('a' + re.anyone * re.repeat(min=1, greedy=False) + 'c', 'abcabc',
+        {'_': 'abc'})
 
-    ('a*', '', SUCCEED, 'found', ''),
-    ('a|b|c|d|e', 'e', SUCCEED, 'found', 'e'),
-    ('(a|b|c|d|e)f', 'ef', SUCCEED, 'found+"-"+g1', 'ef-e'),
 
-    ('(ab|cd)e', 'abcde', SUCCEED, 'found+"-"+g1', 'cde-cd'),
-    ('[abhgefdc]ij', 'hij', SUCCEED, 'found', 'hij'),
-    ('(a|b)c*d', 'abcd', SUCCEED, 'found+"-"+g1', 'bcd-b'),
-    ('(ab|ab*)bc', 'abc', SUCCEED, 'found+"-"+g1', 'abc-a'),
-    ('a([bc]*)c*', 'abc', SUCCEED, 'found+"-"+g1', 'abc-bc'),
-    ('a([bc]*)(c*d)', 'abcd', SUCCEED, 'found+"-"+g1+"-"+g2', 'abcd-bc-d'),
-    ('a([bc]+)(c*d)', 'abcd', SUCCEED, 'found+"-"+g1+"-"+g2', 'abcd-bc-d'),
-    ('a([bc]*)(c+d)', 'abcd', SUCCEED, 'found+"-"+g1+"-"+g2', 'abcd-b-cd'),
-    ('a[bcd]*dcdcde', 'adcdcde', SUCCEED, 'found', 'adcdcde'),
-    ('a[bcd]+dcdcde', 'adcdcde', FAIL),
-    ('(ab|a)b*c', 'abc', SUCCEED, 'found+"-"+g1', 'abc-ab'),
-    ('((a)(b)c)(d)', 'abcd', SUCCEED, 'g1+"-"+g2+"-"+g3+"-"+g4', 'abc-a-b-d'),
-    ('multiple words of text', 'uh-uh', FAIL),
-    ('multiple words', 'multiple words, yeah', SUCCEED, 'found', 'multiple words'),
-    ('(.*)c(.*)', 'abcde', SUCCEED, 'found+"-"+g1+"-"+g2', 'abcde-ab-de'),
-    ('[k]', 'ab', FAIL),
-    ('a[-]?c', 'ac', SUCCEED, 'found', 'ac'),
-    ('(a)(b)c|ab', 'ab', SUCCEED, 'found+"-"+g1+"-"+g2', 'ab-None-None'),
-    ('(a)+x', 'aaax', SUCCEED, 'found+"-"+g1', 'aaax-a'),
-    ('([ac])+x', 'aacx', SUCCEED, 'found+"-"+g1', 'aacx-c'),
-    ('([^/]*/)*sub1/', 'd:msgs/tdir/sub1/trial/away.cpp', SUCCEED, 'found+"-"+g1', 'd:msgs/tdir/sub1/-tdir/'),
-    ('([^N]*N)+', 'abNNxyzN', SUCCEED, 'found+"-"+g1', 'abNNxyzN-xyzN'),
-    ('([^N]*N)+', 'abNNxyz', SUCCEED, 'found+"-"+g1', 'abNN-N'),
-    ('([abc]*)x', 'abcx', SUCCEED, 'found+"-"+g1', 'abcx-abc'),
-    ('([abc]*)x', 'abc', FAIL),
-    ('([xyz]*)x', 'abcx', SUCCEED, 'found+"-"+g1', 'x-'),
-    ('(a)+b|aac', 'aac', SUCCEED, 'found+"-"+g1', 'aac-None'),
-
-    ('ab{1,}bc', 'abbbbc', SUCCEED, 'found', 'abbbbc'),
-    ('ab{1,3}bc', 'abbbbc', SUCCEED, 'found', 'abbbbc'),
-    ('ab{3,4}bc', 'abbbbc', SUCCEED, 'found', 'abbbbc'),
-    ('ab{4,5}bc', 'abbbbc', FAIL),
-
-    ('ab?bc', 'abbc', SUCCEED, 'found', 'abbc'),
-    ('ab?bc', 'abc', SUCCEED, 'found', 'abc'),
-    ('ab{0,1}bc', 'abc', SUCCEED, 'found', 'abc'),
-    ('ab?bc', 'abbbbc', FAIL),
-    ('ab?c', 'abc', SUCCEED, 'found', 'abc'),
-    ('ab{0,1}c', 'abc', SUCCEED, 'found', 'abc'),
-
-    ('a.+?c', 'abcabc', SUCCEED, 'found', 'abc'),
-    ('(a+|b)*', 'ab', SUCCEED, 'found+"-"+g1', 'ab-b'),
-    ('(a+|b){0,}', 'ab', SUCCEED, 'found+"-"+g1', 'ab-b'),
-    ('(a+|b)+', 'ab', SUCCEED, 'found+"-"+g1', 'ab-b'),
-    ('(a+|b){1,}', 'ab', SUCCEED, 'found+"-"+g1', 'ab-b'),
-    ('(a+|b)?', 'ab', SUCCEED, 'found+"-"+g1', 'a-a'),
-    ('(a+|b){0,1}', 'ab', SUCCEED, 'found+"-"+g1', 'a-a'),
-
-    ('a*', '', SUCCEED, 'found', ''),
-    ('([abc])*d', 'abbbcd', SUCCEED, 'found+"-"+g1', 'abbbcd-c'),
-    ('([abc])*bcd', 'abcd', SUCCEED, 'found+"-"+g1', 'abcd-a'),
-    ('[abhgefdc]ij', 'hij', SUCCEED, 'found', 'hij'),
-
-"""
+def test_something():
+    run(re.Either('a' * re.something, 'b') * re.repeat, 'ab', {'_': 'ab'})
+    run(re.Either('a' * re.something, 'b') * re.repeat(0,), 'ab', {'_': 'ab'})
+    run(re.Either('a' * re.something, 'b') * re.something, 'ab', {'_': 'ab'})
+    run(re.Either('a' * re.something, 'b') * re.repeat(1,), 'ab', {'_': 'ab'})
+    run(re.Either('a' * re.something, 'b') * re.maybe, 'ab', {'_': 'a'})
+    run(re.Either('a' * re.something, 'b') * re.repeat(0, 1), 'ab', {'_': 'a'})
