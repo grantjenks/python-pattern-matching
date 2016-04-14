@@ -1,57 +1,44 @@
 """Regular Expression Matching
 
-https://github.com/VerbalExpressions/JSVerbalExpressions/blob/master/VerbalExpressions.js
-Boost regular expressions
-
-\d - digit (allow negation for non-digit)
-\s - whitespace, blank (allow negation for non-whitespace)
-\w - letter [a-zA-Z0-9_] (allow negation for non-word character)
-r'\t' - tab
-' ' - space
-
-.* - anything
-.+ - something
-r'(?:\r\n|\r|\n)' - newline, breakline
-[1-9] - nonzero
-[a-zA-Z0-9] - alnum
-[a-zA-Z] - alpha
-[a-z] - lower
-[A-Z] - upper
-
-Examples:
-
-'http' + maybe('s') + '://' + exclude(' ') * repeat
-either('0', maybe('-') + nonzero + digit * repeat)
-'<' + whitespace * repeat + exclude(whitespace) * repeat(greedy=False) + repeat(whitespace) + '>'
-
 # Todo
 
 * Support "find" rather "match" with:
-  `anyone * re.repeat(greedy=False) + ...`
+  `re.padding + ...`
 * Support "$" or `end` with:
   ... + anyone * re.repeat * re.group('tail') and len(bound.tail) == 0
 * Use uppercase variants / call as in-fix notation.
 * Use lowercase variants / multiply as post-fix notation.
-* Support optimizing using `re.match` when possible.
 
 """
 
 from collections import namedtuple, Sequence
-from functools import partial
 
 infinity = float('inf')
 
 
-class Pattern(Sequence):
-    def __init__(self, iterable=()):
+class Details(Sequence):
+    def __eq__(self, that):
+        return self._details == that._details
+
+    def __ne__(self, that):
+        return self._details != that._details
+
+    def __hash__(self):
+        return hash(self._details)
+
+
+class Pattern(Details):
+    def __init__(self, *iterable):
+        if len(iterable) == 1:
+            iterable = iterable[0]
         is_tuple = isinstance(iterable, tuple)
-        self._pattern = iterable if is_tuple else tuple(iterable)
+        self._details = iterable if is_tuple else tuple(iterable)
 
     def __getitem__(self, index):
-        return self._pattern[index]
+        return self._details[index]
 
     def __len__(self):
-        return len(self._pattern)
+        return len(self._details)
 
     def __add__(self, that):
         if isinstance(that, tuple):
@@ -60,7 +47,7 @@ class Pattern(Sequence):
             that = tuple(that)
         else:
             that = (that,)
-        return Pattern(self._pattern + that)
+        return Pattern(self._details + that)
 
     def __radd__(self, that):
         if isinstance(that, tuple):
@@ -69,15 +56,15 @@ class Pattern(Sequence):
             that = tuple(that)
         else:
             that = (that,)
-        return Pattern(that + self._pattern)
+        return Pattern(that + self._details)
 
     def __repr__(self):
-        return '%s(%r)' % (self.__class__.__name__, tuple(self))
+        return '%s%r' % (type(self).__name__, self._details)
 
     __str__ = __repr__
 
 
-class SequenceMixin(Sequence):
+class PatternMixin(Details):
     def __getitem__(self, index):
         if index == 0:
             return self
@@ -87,13 +74,27 @@ class SequenceMixin(Sequence):
     def __len__(self):
         return 1
 
-
-class PatternMixin(SequenceMixin):
     def __add__(self, that):
         return Pattern(self) + that
 
     def __radd__(self, that):
         return that + Pattern(self)
+
+    def __mul__(self, that):
+        return that.__rmul__(self)
+
+    def __rmul__(self, that):
+        if not isinstance(that, Sequence):
+            that = (that,)
+        return type(self)(that, *self._details[1:])
+
+    def __getattr__(self, name):
+        return getattr(self._details, name)
+
+    def __repr__(self):
+        return repr(self._details)
+
+    __str__ = __repr__
 
 
 class Anyone(PatternMixin):
@@ -106,89 +107,33 @@ class Anyone(PatternMixin):
 anyone = Anyone()
 
 
+_Repeat = namedtuple('Repeat', 'pattern min max greedy')
+
 class Repeat(PatternMixin):
     def __init__(self, pattern=(), min=0, max=infinity, greedy=True):
-        self._pattern = pattern
-        self._min = min
-        self._max = max
-        self._greedy = greedy
-
-    @property
-    def pattern(self):
-        return self._pattern
-
-    @property
-    def min(self):
-        return self._min
-
-    @property
-    def max(self):
-        return self._max
-
-    @property
-    def greedy(self):
-        return self._greedy
+        self._details = _Repeat(pattern, min, max, greedy)
 
     def __call__(self, min=0, max=infinity, greedy=True, pattern=()):
-        return type(self)(pattern=pattern, min=min, max=max, greedy=greedy)
+        return type(self)(pattern, min, max, greedy)
 
-    def __rmul__(self, that):
-        if not isinstance(that, Sequence):
-            that = (that,)
-        return self(self._min, self._max, self._greedy, that)
 
-    def __mul__(self, that):
-        return that.__rmul__(self)
-
-    def __repr__(self):
-        type_name = type(self).__name__
-        parts = (type_name, self._pattern, self._min, self._max, self._greedy)
-        return '%s(%r, %r, %r, %r)' % parts
-
-    __str__ = __repr__
-
+_Group = namedtuple('Group', 'pattern name')
 
 class Group(PatternMixin):
     def __init__(self, pattern=(), name=''):
-        self._pattern = pattern
-        self._name = name
-
-    @property
-    def pattern(self):
-        return self._pattern
-
-    @property
-    def name(self):
-        return self._name
+        self._details = _Group(pattern, name)
 
     def __call__(self, name='', pattern=()):
-        return type(self)(pattern=pattern, name=name)
-
-    def __rmul__(self, that):
-        if not isinstance(that, Sequence):
-            that = (that,)
-        return self(self.name, that)
-
-    def __mul__(self, that):
-        return that.__rmul__(self)
-
-    def __repr__(self):
-        type_name = type(self).__name__
-        parts = (type_name, self._pattern, self._name)
-        return '%s(%r, %r)' % parts
-
-    __str__ = __repr__
+        return type(self)(pattern, name)
 
 group = Group()
 
 
+_Options = namedtuple('Options', 'options')
+
 class Options(PatternMixin):
     def __init__(self, *options):
-        self._options = options
-
-    @property
-    def options(self):
-        return self._options
+        self._details = _Options(options)
 
     def __call__(self, options=()):
         return type(self)(*options)
@@ -196,14 +141,10 @@ class Options(PatternMixin):
     def __rmul__(self, that):
         if not isinstance(that, Sequence):
             that = (that,)
-        return self(that)
-
-    def __mul__(self, that):
-        return that.__rmul__(self)
+        return type(self)(*that)
 
     def __repr__(self):
-        type_name = type(self).__name__
-        return '%s(%r)' % (type_name, self._options)
+        return '%s%r' % (type(self).__name__, self._details.options)
 
     __str__ = __repr__
 
@@ -224,8 +165,9 @@ repeat = Repeat()
 maybe = repeat(max=1)
 anything = anyone * repeat
 something = anyone * repeat(min=1)
-start = anyone * repeat(greedy=False)
-end = anyone * repeat * group('end')
+padding = anyone * repeat(greedy=False)
+
+
 NONE = object()
 
 def match(pattern, sequence):
