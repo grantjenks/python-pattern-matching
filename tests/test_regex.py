@@ -13,6 +13,50 @@ abc_e = 'abc' * re.either
 term = 'multiple words'
 b_s = 'b' * re.repeat
 
+def test_pattern_add_tuple():
+    pattern = re.Pattern((1, 2, 3))
+    pattern = pattern + (4, 5, 6)
+    assert pattern == re.Pattern((1, 2, 3, 4, 5, 6))
+
+def test_pattern_radd_tuple():
+    pattern = re.Pattern((4, 5, 6))
+    pattern = (1, 2, 3) + pattern
+    assert pattern == re.Pattern((1, 2, 3, 4, 5, 6))
+
+def test_pattern_add_single():
+    pattern = re.Pattern((1, 2, 3))
+    pattern = pattern + None
+    assert pattern == re.Pattern((1, 2, 3, None))
+
+def test_pattern_radd_single():
+    pattern = re.Pattern((4, 5, 6))
+    pattern = None + pattern
+    assert pattern == re.Pattern((None, 4, 5, 6))
+
+def test_pattern_ne():
+    assert re.Pattern((1, 2, 3)) != re.Pattern((4, 5, 6))
+
+def test_pattern_hash():
+    assert hash(re.Pattern((1, 2, 3))) == hash((1, 2, 3))
+
+def test_pattern_repr():
+    assert repr(re.Pattern((1, 2, 3))) == 'Pattern(1, 2, 3)'
+
+def test_anyone_repr():
+    assert repr(re.anyone) == 'anyone'
+
+def test_repeat_rmul_single():
+    assert None * re.repeat == re.Repeat((None,), 0, re.infinity, True)
+
+def test_repeat_repr():
+    assert repr(re.repeat) == 'Repeat(pattern=(), min=0, max=inf, greedy=True)'
+
+def test_either_rmul_single():
+    assert None * re.either == re.Either(None)
+
+def test_either_repr():
+    assert repr(re.either) == 'Either()'
+
 def run(*args):
     args = list(args)
     result = args.pop()
@@ -60,7 +104,7 @@ def test_repeat():
     run('a' * re.repeat, '', {'_': ''})
     run('a' * re.repeat, 'a', {'_': 'a'})
     run('a' * re.repeat, 'aaa', {'_': 'aaa'})
-    run(re.start + 'a' * re.repeat(1) + 'b' + 'c' * re.repeat(1), 'aabbabc',
+    run(re.padding + 'a' * re.repeat(1) + 'b' + 'c' * re.repeat(1), 'aabbabc',
         {'_': 'aabbabc'})
 
 
@@ -93,7 +137,7 @@ def test_maybe():
 
 
 def test_either():
-    run('a' + 'bc' * re.either + 'd', 'abc', None)
+    run('a' + re.either('bc') + 'd', 'abc', None)
     run('a' + 'bc' * re.either + 'd', 'abd', {'_': 'abd'})
     run(('ab', 'cd') * re.either, 'abc', {'_': 'ab'})
     run(('ab', 'cd') * re.either, 'abcd', {'_': 'ab'})
@@ -103,7 +147,7 @@ def test_either():
     run(re.Either('a' * re.repeat(min=1), 'b') * re.maybe, 'ab', {'_': 'a'})
     run('abcde' * re.either, 'e', {'_': 'e'})
     run('abcde' * re.either + 'f', 'ef', {'_': 'ef'})
-    run(re.start + re.Either('ab', 'cd') + 'e', 'abcde', {'_': 'abcde'})
+    run(re.padding + re.Either('ab', 'cd') + 'e', 'abcde', {'_': 'abcde'})
     run('abhgefdc' * re.either + 'ij', 'hij', {'_': 'hij'})
 
 
@@ -117,7 +161,7 @@ def test_misc():
     bc_e_r_g_1 = 'bc' * re.either * re.repeat * re.group(1)
     bc_e_r_1_g_1 = 'bc' * re.either * re.repeat(min=1) * re.group(1)
 
-    run(re.start + 'ab' * re.either + 'c' * re.repeat + 'd', 'abcd',
+    run(re.padding + 'ab' * re.either + 'c' * re.repeat + 'd', 'abcd',
         {'_': 'abcd'})
     run(('ab', 'a' + b_s) * re.either + 'bc', 'abc', {'_': 'abc'})
     run('a' + bc_e_r_g_1 + 'c' * re.repeat, 'abc', {'_': 'abc', 1: 'bc'})
@@ -151,7 +195,7 @@ def test_misc():
         'abNNxyz', {'_': 'abNN', 1: 'N'})
     run(abc_e * re.repeat * re.group(1) + 'x', 'abcx', {'_': 'abcx', 1: 'abc'})
     run(abc_e * re.repeat * re.group(1) + 'x', 'abc', None)
-    run(re.start + 'xyz' * re.either * re.repeat * re.group(1) + 'x', 'abcx',
+    run(re.padding + 'xyz' * re.either * re.repeat * re.group(1) + 'x', 'abcx',
         {'_': 'abcx', 1: ''})
     run(re.Either(re.Group('a') * re.repeat(min=1) + 'b', 'aac'), 'aac',
         {'_': 'aac'})
