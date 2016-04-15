@@ -62,27 +62,27 @@ def name_action(matcher, value, pattern):
 cases.append(Case('names', name_predicate, name_action))
 
 ###############################################################################
-# Match patterns
+# Match Like objects
 ###############################################################################
 
-Pattern = namedtuple('Pattern', 'pattern name')
+Like = namedtuple('Like', 'pattern name')
 
 def like(pattern, name='result'):
-    return Pattern(pattern, name)
+    return Like(pattern, name)
 
-def pattern_predicate(matcher, value, pattern):
-    return isinstance(pattern, Pattern)
+def like_predicate(matcher, value, pattern):
+    return isinstance(pattern, Like)
 
 import re
 
 if hexversion > 0x03000000:
     unicode = str
 
-pattern_errors = (
+like_errors = (
     AttributeError, LookupError, NotImplementedError, TypeError, ValueError
 )
 
-def pattern_action(matcher, value, pattern):
+def like_action(matcher, value, pattern):
     name = pattern.name
     pattern = pattern.pattern
 
@@ -95,7 +95,7 @@ def pattern_action(matcher, value, pattern):
 
     try:
         result = func(value)
-    except pattern_errors:
+    except like_errors:
         raise Mismatch
 
     if not result:
@@ -106,7 +106,7 @@ def pattern_action(matcher, value, pattern):
 
     return result
 
-cases.append(Case('patterns', pattern_predicate, pattern_action))
+cases.append(Case('likes', like_predicate, like_action))
 
 ###############################################################################
 # Match types
