@@ -8,7 +8,7 @@ from sys import hexversion
 from collections import namedtuple, Sequence
 
 Case = namedtuple('Case', 'name predicate action')
-_cases = []
+cases = []
 
 class Mismatch(Exception):
     pass
@@ -21,13 +21,13 @@ class Anyone(object): pass
 
 anyone = Anyone()
 
-def _anyone_predicate(matcher, value, pattern):
+def anyone_predicate(matcher, value, pattern):
     return isinstance(pattern, Anyone)
 
-def _anyone_action(matcher, value, pattern):
+def anyone_action(matcher, value, pattern):
     return value
 
-_cases.append(Case('anyone', _anyone_predicate, _anyone_action))
+cases.append(Case('anyone', anyone_predicate, anyone_action))
 
 ###############################################################################
 # Match names
@@ -46,20 +46,20 @@ class Binder(object):
 
 bind = Binder()
 
-def _name_predicate(matcher, value, pattern):
+def name_predicate(matcher, value, pattern):
     return isinstance(pattern, Name)
     
-def _name_store(matcher, name, value):
+def name_store(matcher, name, value):
     if name in matcher.names:
         if value != matcher.names[name]:
             raise Mismatch
     matcher.names[name] = value
 
-def _name_action(matcher, value, pattern):
-    _name_store(matcher, pattern.value, value)
+def name_action(matcher, value, pattern):
+    name_store(matcher, pattern.value, value)
     return value
 
-_cases.append(Case('names', _name_predicate, _name_action))
+cases.append(Case('names', name_predicate, name_action))
 
 ###############################################################################
 # Match patterns
@@ -70,7 +70,7 @@ Pattern = namedtuple('Pattern', 'pattern name')
 def like(pattern, name='result'):
     return Pattern(pattern, name)
 
-def _pattern_predicate(matcher, value, pattern):
+def pattern_predicate(matcher, value, pattern):
     return isinstance(pattern, Pattern)
 
 import re
@@ -78,11 +78,11 @@ import re
 if hexversion > 0x03000000:
     unicode = str
 
-_pattern_errors = (
+pattern_errors = (
     AttributeError, LookupError, NotImplementedError, TypeError, ValueError
 )
 
-def _pattern_action(matcher, value, pattern):
+def pattern_action(matcher, value, pattern):
     name = pattern.name
     pattern = pattern.pattern
 
@@ -95,27 +95,27 @@ def _pattern_action(matcher, value, pattern):
 
     try:
         result = func(value)
-    except _pattern_errors:
+    except pattern_errors:
         raise Mismatch
 
     if not result:
         raise Mismatch
 
     if name is not None:
-        _name_store(matcher, name, result)
+        name_store(matcher, name, result)
 
     return result
 
-_cases.append(Case('patterns', _pattern_predicate, _pattern_action))
+cases.append(Case('patterns', pattern_predicate, pattern_action))
 
 ###############################################################################
 # Match types
 ###############################################################################
 
-def _type_predicate(matcher, value, pattern):
+def type_predicate(matcher, value, pattern):
     return type(pattern) == type
 
-def _type_action(matcher, value, pattern):
+def type_action(matcher, value, pattern):
     if type(value) == type and issubclass(value, pattern):
         return value
     elif isinstance(value, pattern):
@@ -123,35 +123,35 @@ def _type_action(matcher, value, pattern):
     else:
         raise Mismatch
 
-_cases.append(Case('types', _type_predicate, _type_action))
+cases.append(Case('types', type_predicate, type_action))
 
 ###############################################################################
 # Match literals
 ###############################################################################
 
 if hexversion < 0x03000000:
-    _literal_types = (type(None), bool, int, float, long, complex, basestring)
+    literal_types = (type(None), bool, int, float, long, complex, basestring)
 else:
-    _literal_types = (type(None), bool, int, float, complex, str, bytes)
+    literal_types = (type(None), bool, int, float, complex, str, bytes)
 
-def _literal_predicate(matcher, value, pattern):
+def literal_predicate(matcher, value, pattern):
     return (
-        isinstance(pattern, _literal_types)
-        and isinstance(value, _literal_types)
+        isinstance(pattern, literal_types)
+        and isinstance(value, literal_types)
     )
 
-def _literal_action(matcher, value, pattern):
+def literal_action(matcher, value, pattern):
     if value != pattern:
         raise Mismatch
     return value
 
-_cases.append(Case('literals', _literal_predicate, _literal_action))
+cases.append(Case('literals', literal_predicate, literal_action))
 
 ###############################################################################
 # Match sequences
 ###############################################################################
 
-def _sequence_predicate(matcher, value, pattern):
+def sequence_predicate(matcher, value, pattern):
     return (
         isinstance(value, type(pattern))
         and isinstance(value, Sequence)
@@ -161,7 +161,7 @@ def _sequence_predicate(matcher, value, pattern):
 if hexversion < 0x03000000:
     from itertools import izip as zip
 
-def _sequence_action(matcher, value, pattern):
+def sequence_action(matcher, value, pattern):
     args = (matcher.visit(one, two) for one, two in zip(value, pattern))
     type_value = type(value)
     if issubclass(type_value, tuple) and hasattr(type_value, '_make'):
@@ -169,16 +169,16 @@ def _sequence_action(matcher, value, pattern):
     else:
         return type_value(args)
 
-_cases.append(Case('sequences', _sequence_predicate, _sequence_action))
+cases.append(Case('sequences', sequence_predicate, sequence_action))
 
 ###############################################################################
 # Matching algorithm
 ###############################################################################
 
 class Matcher(object):
-    def __init__(self, cases=_cases):
+    def __init__(self, cases=cases):
         self.names = {}
-        self.cases = _cases
+        self.cases = cases
     def __call__(self):
         return self.__class__(cases=self.cases)
     def visit(self, value, pattern):
