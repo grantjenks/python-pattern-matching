@@ -7,7 +7,7 @@ Python pattern matching using a function-based approach.
 from sys import hexversion
 from collections import namedtuple, Sequence
 
-Case = namedtuple('Case', 'name predicate rule')
+Case = namedtuple('Case', 'name predicate action')
 _cases = []
 
 class Mismatch(Exception):
@@ -24,10 +24,10 @@ anyone = Anyone()
 def _anyone_predicate(matcher, value, pattern):
     return isinstance(pattern, Anyone)
 
-def _anyone_rule(matcher, value, pattern):
+def _anyone_action(matcher, value, pattern):
     return value
 
-_cases.append(Case('anyone', _anyone_predicate, _anyone_rule))
+_cases.append(Case('anyone', _anyone_predicate, _anyone_action))
 
 ###############################################################################
 # Match names
@@ -55,11 +55,11 @@ def _name_store(matcher, name, value):
             raise Mismatch
     matcher.names[name] = value
 
-def _name_rule(matcher, value, pattern):
+def _name_action(matcher, value, pattern):
     _name_store(matcher, pattern.value, value)
     return value
 
-_cases.append(Case('names', _name_predicate, _name_rule))
+_cases.append(Case('names', _name_predicate, _name_action))
 
 ###############################################################################
 # Match patterns
@@ -82,7 +82,7 @@ _pattern_errors = (
     AttributeError, LookupError, NotImplementedError, TypeError, ValueError
 )
 
-def _pattern_rule(matcher, value, pattern):
+def _pattern_action(matcher, value, pattern):
     name = pattern.name
     pattern = pattern.pattern
 
@@ -106,7 +106,7 @@ def _pattern_rule(matcher, value, pattern):
 
     return result
 
-_cases.append(Case('patterns', _pattern_predicate, _pattern_rule))
+_cases.append(Case('patterns', _pattern_predicate, _pattern_action))
 
 ###############################################################################
 # Match types
@@ -115,7 +115,7 @@ _cases.append(Case('patterns', _pattern_predicate, _pattern_rule))
 def _type_predicate(matcher, value, pattern):
     return type(pattern) == type
 
-def _type_rule(matcher, value, pattern):
+def _type_action(matcher, value, pattern):
     if type(value) == type and issubclass(value, pattern):
         return value
     elif isinstance(value, pattern):
@@ -123,7 +123,7 @@ def _type_rule(matcher, value, pattern):
     else:
         raise Mismatch
 
-_cases.append(Case('types', _type_predicate, _type_rule))
+_cases.append(Case('types', _type_predicate, _type_action))
 
 ###############################################################################
 # Match literals
@@ -140,12 +140,12 @@ def _literal_predicate(matcher, value, pattern):
         and isinstance(value, _literal_types)
     )
 
-def _literal_rule(matcher, value, pattern):
+def _literal_action(matcher, value, pattern):
     if value != pattern:
         raise Mismatch
     return value
 
-_cases.append(Case('literals', _literal_predicate, _literal_rule))
+_cases.append(Case('literals', _literal_predicate, _literal_action))
 
 ###############################################################################
 # Match sequences
@@ -161,7 +161,7 @@ def _sequence_predicate(matcher, value, pattern):
 if hexversion < 0x03000000:
     from itertools import izip as zip
 
-def _sequence_rule(matcher, value, pattern):
+def _sequence_action(matcher, value, pattern):
     args = (matcher.visit(one, two) for one, two in zip(value, pattern))
     type_value = type(value)
     if issubclass(type_value, tuple) and hasattr(type_value, '_make'):
@@ -169,7 +169,7 @@ def _sequence_rule(matcher, value, pattern):
     else:
         return type_value(args)
 
-_cases.append(Case('sequences', _sequence_predicate, _sequence_rule))
+_cases.append(Case('sequences', _sequence_predicate, _sequence_action))
 
 ###############################################################################
 # Matching algorithm
@@ -182,9 +182,9 @@ class Matcher(object):
     def __call__(self):
         return self.__class__(cases=self.cases)
     def visit(self, value, pattern):
-        for name, predicate, rule in self.cases:
+        for name, predicate, action in self.cases:
             if predicate(self, value, pattern):
-                return rule(self, value, pattern)
+                return action(self, value, pattern)
         raise Mismatch
 
 matcher = Matcher()
