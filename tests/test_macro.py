@@ -100,6 +100,22 @@ def match_bind(value):
     pass
 
 
+if pm._cpython2:
+    @pm.transform(module='pm')
+    def factorial(num):
+        _ = None:
+        with match(num):
+            with 1:
+                return 1
+            with _:
+                return num * factorial(num - 1)
+
+
+@only_cpython2
+def test_factorial():
+    assert factorial(5) == 120
+
+
 @only_cpython2
 def test_roundtrip():
     import os
