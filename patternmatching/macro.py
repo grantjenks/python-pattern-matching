@@ -147,7 +147,9 @@ def trybind(quote, expr, value, globs, locs):
                 raise Mismatch
             return value
         elif isinstance(node, ast.Name):
-            if node.id in locs:
+            if node.id == '_':
+                pass
+            elif node.id in locs:
                 if value != locs[node.id]:
                     raise Mismatch
             elif node.id in globs:

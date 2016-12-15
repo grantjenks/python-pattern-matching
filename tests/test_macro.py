@@ -103,7 +103,7 @@ def match_bind(value):
 if pm._cpython2:
     @pm.transform(module='pm')
     def factorial(num):
-        _ = None:
+        _ = None
         with match(num):
             with 1:
                 return 1
