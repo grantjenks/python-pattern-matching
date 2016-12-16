@@ -5,6 +5,7 @@ Python pattern matching using a function-based approach.
 TODO:
 
 * Protect Name('result') from binder.
+* Improve docstrings with examples.
 
 """
 
@@ -59,7 +60,7 @@ class Pattern(Details):
     >>> Pattern() + [1, 2, 3]
     Pattern(1, 2, 3)
     >>> None + Pattern()
-    Pattern(None,)
+    Pattern(None)
     >>> list(Pattern(4, 5, 6))
     [4, 5, 6]
 
@@ -95,7 +96,8 @@ class Pattern(Details):
         return Pattern(that + self._details)
 
     def __repr__(self):
-        return '%s%r' % (type(self).__name__, self._details)
+        args = ', '.join(map(repr, self._details))
+        return '%s(%s)' % (type(self).__name__, args)
 
     __str__ = __repr__
 
@@ -234,7 +236,9 @@ def name_store(matcher, name, value):
 
     """
     if name in matcher.names:
-        if value != matcher.names[name]:
+        if value == matcher.names[name]:
+            pass  # Prefer equality comparison to inequality.
+        else:
             raise Mismatch
     matcher.names[name] = value
 
@@ -253,9 +257,18 @@ base_cases.append(Case('names', name_predicate, name_action))
 Like = namedtuple('Like', 'pattern name')
 
 def like(pattern, name='result'):
+    """Return `Like` object with given `pattern` and `name`, default "result".
+
+    >>> like('abc.*')
+    Like(pattern='abc.*', name='result')
+    >>> like('abc.*', 'prefix')
+    Like(pattern='abc.*', name='prefix')
+
+    """
     return Like(pattern, name)
 
 def like_predicate(matcher, value, pattern):
+    "Return True if `pattern` is an instance of `Like`."
     return isinstance(pattern, Like)
 
 import re
@@ -268,6 +281,24 @@ like_errors = (
 )
 
 def like_action(matcher, value, pattern):
+    """Apply `pattern` as callable to `value` and store result in `matcher`.
+
+    Given `pattern` is expected as `Like` instance and deconstructed by
+    attribute into `name` and `pattern`.
+
+    When `pattern` is text then it is used as a regular expression.
+
+    When `name` is None then the result is not stored in `matcher.names`.
+
+    Raises `Mismatch` if callable raises exception in `like_errors` or result
+    is falsy.
+
+    >>> match('abcdef', like('abc.*'))
+    True
+    >>> match(123, like(lambda num: num % 2 == 0))
+    False
+
+    """
     name = pattern.name
     pattern = pattern.pattern
 
@@ -293,15 +324,33 @@ def like_action(matcher, value, pattern):
 
 base_cases.append(Case('likes', like_predicate, like_action))
 
+
 ###############################################################################
 # Match Case: types
 ###############################################################################
 
 def type_predicate(matcher, value, pattern):
-    return type(pattern) == type
+    "Return True if `pattern` is an instance of `type`."
+    return isinstance(pattern, type)
 
 def type_action(matcher, value, pattern):
-    if type(value) == type and issubclass(value, pattern):
+    """Match `value` as subclass or instance of `pattern`.
+
+    >>> match(1, int)
+    True
+    >>> match(True, bool)
+    True
+    >>> match(True, int)
+    True
+    >>> match(bool, int)
+    True
+    >>> match(0.0, int)
+    False
+    >>> match(float, int)
+    False
+
+    """
+    if isinstance(value, type) and issubclass(value, pattern):
         return value
     elif isinstance(value, pattern):
         return value
@@ -321,15 +370,29 @@ else:
     literal_types = (type(None), bool, int, float, complex, str, bytes)
 
 def literal_predicate(matcher, value, pattern):
+    "Return True if `value` and `pattern` instance of `literal_types`."
     return (
         isinstance(pattern, literal_types)
         and isinstance(value, literal_types)
     )
 
 def literal_action(matcher, value, pattern):
-    if value != pattern:
+    """Match `value` as equal to `pattern`.
+
+    >>> match(1, 1)
+    True
+    >>> match('abc', 'abc')
+    True
+    >>> match(1, 1.0)
+    True
+    >>> match(1, True)
+    True
+
+    """
+    if value == pattern:
+        return value
+    else:
         raise Mismatch
-    return value
 
 base_cases.append(Case('literals', literal_predicate, literal_action))
 
@@ -339,6 +402,10 @@ base_cases.append(Case('literals', literal_predicate, literal_action))
 ###############################################################################
 
 def sequence_predicate(matcher, value, pattern):
+    """Return True if `value` is instance of type of `pattern` and `pattern` is
+    instance of Sequence and lengths are equal.
+
+    """
     return (
         isinstance(value, type(pattern))
         and isinstance(pattern, Sequence)
@@ -349,10 +416,22 @@ if hexversion < 0x03000000:
     from itertools import izip as zip
 
 def sequence_action(matcher, value, pattern):
+    """Iteratively match items of `pattern` with `value` in sequence.
+
+    When `value` is named tuple then return value will preserve type.
+
+    >>> match([0, 'abc', {}], [int, str, dict])
+    True
+    >>> match((0, True, bool), (0.0, 1, int))
+    True
+    >>> match([], ())
+    False
+
+    """
     args = (matcher.visit(one, two) for one, two in zip(value, pattern))
     type_value = type(value)
     if issubclass(type_value, tuple) and hasattr(type_value, '_make'):
-        return type_value._make(args) # namedtuple case
+        return type_value._make(args)  # namedtuple case
     else:
         return type_value(args)
 
@@ -366,6 +445,28 @@ base_cases.append(Case('sequences', sequence_predicate, sequence_action))
 _Repeat = namedtuple('Repeat', 'pattern min max greedy')
 
 class Repeat(PatternMixin):
+    """Pattern specifying repetition with min/max count and greedy parameters.
+
+    Inherits from `PatternMixin` which defines multiplication operators to
+    capture patterns.
+
+    >>> Repeat()
+    Repeat(pattern=(), min=0, max=inf, greedy=True)
+    >>> repeat = Repeat()
+    >>> repeat(max=1)
+    Repeat(pattern=(), min=0, max=1, greedy=True)
+    >>> maybe = repeat(max=1)
+    >>> Repeat(anyone)
+    Repeat(pattern=anyone, min=0, max=inf, greedy=True)
+    >>> anyone * repeat
+    Repeat(pattern=anyone, min=0, max=inf, greedy=True)
+    >>> anything = anyone * repeat
+    >>> anyone * repeat(min=1)
+    Repeat(pattern=anyone, min=1, max=inf, greedy=True)
+    >>> something = anyone * repeat(min=1)
+    >>> padding = anyone * repeat(greedy=False)
+
+    """
     def __init__(self, pattern=(), min=0, max=infinity, greedy=True):
         self._details = _Repeat(pattern, min, max, greedy)
 
@@ -382,6 +483,20 @@ padding = anyone * repeat(greedy=False)
 _Group = namedtuple('Group', 'pattern name')
 
 class Group(PatternMixin):
+    """Pattern specifying a group with name parameter.
+
+    Inherits from `PatternMixin` which defines multiplication operators to
+    capture patterns.
+
+    >>> Group()
+    Group(pattern=(), name='')
+    >>> Group(['red', 'blue', 'yellow'], 'color')
+    Group(pattern=['red', 'blue', 'yellow'], name='color')
+    >>> group = Group()
+    >>> ['red', 'blue', 'yellow'] * group('color')
+    Group(pattern=['red', 'blue', 'yellow'], name='color')
+
+    """
     def __init__(self, pattern=(), name=''):
         self._details = _Group(pattern, name)
 
@@ -394,6 +509,7 @@ group = Group()
 _Options = namedtuple('Options', 'options')
 
 class Options(PatternMixin):
+    "Pattern specifying a sequence of options to match."
     def __init__(self, *options):
         self._details = _Options(options)
 
@@ -406,18 +522,21 @@ class Options(PatternMixin):
         return type(self)(*that)
 
     def __repr__(self):
-        return '%s%r' % (type(self).__name__, self._details.options)
+        args = ', '.join(map(repr, self._details.options))
+        return '%s(%s)' % (type(self).__name__, args)
 
     __str__ = __repr__
 
 
 class Either(Options):
+    "Pattern specifying that any of options may match."
     pass
 
 either = Either()
 
 
 class Exclude(Options):
+    "Pattern specifying that none of options may match."
     pass
 
 exclude = Exclude()
@@ -426,9 +545,24 @@ exclude = Exclude()
 NONE = object()
 
 def pattern_predicate(matcher, value, pattern):
+    "Return True if `pattern` is an instance of `Pattern` or `PatternMixin`."
     return isinstance(pattern, (Pattern, PatternMixin))
 
 def pattern_action(matcher, sequence, pattern):
+    """Match `pattern` to `sequence` with `Pattern` semantics.
+
+    The `Pattern` type is used to define semantics like regular expressions.
+
+    >>> match([0, 1, 2], [0, 1] + anyone)
+    True
+    >>> match([0, 0, 0, 0], 0 * repeat)
+    True
+    >>> match('blue', either(['red', 'blue', 'yellow']))
+    True
+    >>> match([2, 4, 6], Exclude(like(lambda num: num % 2 == 1)))
+    True
+
+    """
     names = matcher.names
     len_sequence = len(sequence)
 
@@ -502,13 +636,6 @@ def pattern_action(matcher, sequence, pattern):
                     except Mismatch:
                         return
 
-                # if offset >= len_sequence:
-                #     return
-                # elif matcher.match(sequence[offset], item): # TODO: Wrong. See sequences.
-                #     pass
-                # else:
-                #     return
-
             index += 1
             offset += 1
 
@@ -518,6 +645,8 @@ def pattern_action(matcher, sequence, pattern):
 
     for end in visit(pattern, 0, 0, 0):
         return sequence[:end]
+    else:
+        raise Mismatch
 
 base_cases.append(Case('patterns', pattern_predicate, pattern_action))
 
@@ -527,13 +656,26 @@ base_cases.append(Case('patterns', pattern_predicate, pattern_action))
 ###############################################################################
 
 class Bounder(object):
-    """Bounder objects.
+    """Stack for storing names bound to values for `Matcher`.
 
-    todo
+    >>> Bounder()
+    Bounder([])
+    >>> bound = Bounder([{'foo': 0}])
+    >>> bound.foo
+    0
+    >>> len(bound)
+    1
+    >>> bound._pop()
+    {'foo': 0}
+    >>> len(bound)
+    0
+    >>> bound._push({'bar': 1})
+    >>> bound[0]
+    {'bar': 1}
 
     """
-    def __init__(self, maps=[]):
-        self._maps = maps
+    def __init__(self, maps=()):
+        self._maps = list(maps)
 
     def __getattr__(self, name):
         return self[-1][name]
@@ -574,9 +716,7 @@ class Bounder(object):
 ###############################################################################
 
 class Matcher(object):
-    """Matcher objects.
-
-    todo
+    """Container for match function state with list of pattern cases.
 
     >>> matcher = Matcher()
     >>> matcher.match(None, None)
@@ -596,20 +736,20 @@ class Matcher(object):
 
     """
     def __init__(self, cases=base_cases, bounder=Bounder):
-        self._bound = bounder()
         self._cases = cases
+        self._bound = bounder()
         self._names = {}
 
     def match(self, value, pattern):
-        _names = self._names
+        names = self._names
         try:
-            _names['result'] = self.visit(value, pattern)
+            names['result'] = self.visit(value, pattern)
         except Mismatch:
             return False
         else:
-            self._bound._push(_names.copy())
+            self._bound._push(names.copy())
         finally:
-            _names.clear()
+            names.clear()
         return True
 
     def visit(self, value, pattern):

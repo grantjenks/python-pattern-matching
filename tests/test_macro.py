@@ -6,10 +6,10 @@ import patternmatching as pm
 def only_cpython2(func):
     def do_nothing():
         pass
-    return func if pm._cpython2 else do_nothing
+    return func if pm.CPY2 else do_nothing
 
 
-if pm._cpython2:
+if pm.CPY2:
     @pm.transform(module='pm')
     def match_basic(value):
         other_value = 20
@@ -49,7 +49,7 @@ def test_basic():
         assert match_basic(value) == result
 
 
-if pm._cpython2:
+if pm.CPY2:
     @pm.transform(module='pm')
     def match_many(value):
         with match(value % 2):
@@ -100,7 +100,7 @@ def match_bind(value):
     pass
 
 
-if pm._cpython2:
+if pm.CPY2:
     @pm.transform(module='pm')
     def factorial(num):
         _ = None

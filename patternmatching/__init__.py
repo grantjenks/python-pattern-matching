@@ -4,18 +4,29 @@ Python pattern matching library.
 
 """
 
-from sys import hexversion as _hexversion
-from platform import python_implementation as _python_implementation
+from .funcs import *
 
-_cpython2 = (_python_implementation() == 'CPython'
-             and 0x02060000 <= _hexversion < 0x02080000)
+__all__ = [
+    'Matcher', 'match',
+    'Name', 'Binder', 'bind', 'Bounder', 'bound',
+    'Like', 'like', 'like_errors',
+    'literal_types',
+    'Anyone', 'anyone',
+    'Pattern', 'Exclude', 'exclude', 'Either', 'either', 'Group', 'group',
+    'Repeat', 'repeat', 'maybe', 'anything', 'something', 'padding',
+]
 
-if _cpython2:
-    from .macro import (
-        store, transform, uncompile, recompile, PatternMatchingBreak, trybind,
-    )
+from sys import hexversion
+from platform import python_implementation as py_impl
 
-from .funcs import match, bind, bound, like
+CPY2 = (py_impl() == 'CPython' and 0x02060000 <= hexversion < 0x02080000)
+
+if CPY2:
+    from .macro import *
+    __all__.extend([
+        'CPY2', 'PatternMatchingBreak', 'recompile', 'store', 'transform',
+        'trybind', 'uncompile',
+    ])
 
 __title__ = 'PatternMatching'
 __version__ = '2.0.0'
