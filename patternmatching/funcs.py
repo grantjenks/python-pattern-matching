@@ -371,10 +371,8 @@ else:
 
 def literal_predicate(matcher, value, pattern):
     "Return True if `value` and `pattern` instance of `literal_types`."
-    return (
-        isinstance(pattern, literal_types)
-        and isinstance(value, literal_types)
-    )
+    literal_pattern = isinstance(pattern, literal_types)
+    return literal_pattern and isinstance(value, literal_types)
 
 def literal_action(matcher, value, pattern):
     """Match `value` as equal to `pattern`.
@@ -398,6 +396,36 @@ base_cases.append(Case('literals', literal_predicate, literal_action))
 
 
 ###############################################################################
+# Match Case: equality
+###############################################################################
+
+def equality_predicate(matcher, value, pattern):
+    "Return True if `value` equals `pattern`."
+    try:
+        return value == pattern
+    except Exception:
+        return False
+
+def equality_action(matcher, value, pattern):
+    """Match `value` as equal to `pattern`.
+
+    >>> identity = lambda value: value
+    >>> match(identity, identity)
+    True
+    >>> match('abc', 'abc')
+    True
+    >>> match(1, 1.0)
+    True
+    >>> match(1, True)
+    True
+
+    """
+    return value
+
+base_cases.append(Case('equality', equality_predicate, equality_action))
+
+
+###############################################################################
 # Match Case: sequences
 ###############################################################################
 
@@ -418,7 +446,7 @@ if hexversion < 0x03000000:
 def sequence_action(matcher, value, pattern):
     """Iteratively match items of `pattern` with `value` in sequence.
 
-    When `value` is named tuple then return value will preserve type.
+    Return tuple of results of matches.
 
     >>> match([0, 'abc', {}], [int, str, dict])
     True
@@ -428,12 +456,8 @@ def sequence_action(matcher, value, pattern):
     False
 
     """
-    args = (matcher.visit(one, two) for one, two in zip(value, pattern))
-    type_value = type(value)
-    if issubclass(type_value, tuple) and hasattr(type_value, '_make'):
-        return type_value._make(args)  # namedtuple case
-    else:
-        return type_value(args)
+    pairs = zip(value, pattern)
+    return tuple(matcher.visit(item, iota) for item, iota in pairs)
 
 base_cases.append(Case('sequences', sequence_predicate, sequence_action))
 
