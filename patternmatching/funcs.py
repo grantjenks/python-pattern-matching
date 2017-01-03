@@ -2,28 +2,70 @@
 
 Python pattern matching using a function-based approach.
 
+Python Pattern Matching contributions:
+
+* API for matching: __match__ and Matcher object for state
+* Method fo binding values to names
+* Algorithm for patterns (generic regex)
+* New match rule for "types"
+* ...
+
 TODO:
 
 * Protect Name('result') from binder.
 * Improve docstrings with examples.
+* Need Details be Sequence type?
+* Todo: Undo name binding when backtracking in regex algorithm.
+  * Maybe need __unify__?
+  * Unification is a more generic idea than pattern matching. Extremely useful
+    for handling Mapping and Set cases where combinations occur.
+    * For Mapping and Set patterns: try all permutations of orders against
+      input value.
 
 """
 
-from collections import namedtuple, Sequence
+from collections import Sequence
 from functools import wraps
 from sys import hexversion
 
 infinity = float('inf')
 
 
-class Case(namedtuple('Case', 'name predicate action')):
+class Record(object):
+    """Mutable "named tuple" base class."""
+    __slots__ = ()
+
+    def __init__(self, *args):
+        for field, value in zip(self.__slots__, args):
+            setattr(self, field, value)
+
+    def __getitem__(self, index):
+        return getattr(self, self.__slots__[index])
+
+    def __eq__(self, that):
+        if not isinstance(that, type(self)):
+            return NotImplemented
+        return all(item == iota for item, iota in zip(self, that))
+
+    def __repr__(self):
+        args = ', '.join(repr(item) for item in self)
+        return '%s(%s)' % (type(self).__name__, args)
+
+    def __getstate__(self):
+        return tuple(self)
+
+    def __setstate__(self, state):
+        self.__init__(*state)
+
+
+class Case(Record):
     """Three-ple of `name`, `predicate`, and `action`.
 
     `Matcher` objects successively try a sequence of `Case` predicates. When a
     match is found, the `Case` action is applied.
 
     """
-    pass
+    __slots__ = 'name', 'predicate', 'action'
 
 base_cases = []
 
@@ -128,13 +170,15 @@ class PatternMixin(Details):
     def __rmul__(self, that):
         if not isinstance(that, Sequence):
             that = (that,)
-        return type(self)(that, *self._details[1:])
+        return type(self)(that, *tuple(self._details)[1:])
 
     def __getattr__(self, name):
         return getattr(self._details, name)
 
     def __repr__(self):
-        return repr(self._details)
+        pairs = zip(self._details.__slots__, self._details)
+        tokens = ('%s=%s' % (name, repr(value)) for name, value in pairs)
+        return '%s(%s)' % (type(self).__name__, ', '.join(tokens))
 
     __str__ = __repr__
 
@@ -181,7 +225,7 @@ base_cases.append(Case('anyone', anyone_predicate, anyone_action))
 # Match Case: names
 ###############################################################################
 
-class Name(namedtuple('Name', 'value')):
+class Name(Record):
     """Name objects simply wrap a `value` to be used as a name.
 
     >>> match([1, 2, 3], [Name('head'), 2, 3])
@@ -190,7 +234,7 @@ class Name(namedtuple('Name', 'value')):
     True
 
     """
-    pass
+    __slots__ = 'value',
 
 class Binder(object):
     """Binder objects return Name objects on attribute lookup.
@@ -254,7 +298,8 @@ base_cases.append(Case('names', name_predicate, name_action))
 # Match Case: likes
 ###############################################################################
 
-Like = namedtuple('Like', 'pattern name')
+class Like(Record):
+    __slots__ = 'pattern', 'name'
 
 def like(pattern, name='result'):
     """Return `Like` object with given `pattern` and `name`, default "result".
@@ -466,7 +511,8 @@ base_cases.append(Case('sequences', sequence_predicate, sequence_action))
 # Match Case: patterns
 ###############################################################################
 
-_Repeat = namedtuple('Repeat', 'pattern min max greedy')
+class _Repeat(Record):
+    __slots__ = 'pattern', 'min', 'max', 'greedy'
 
 class Repeat(PatternMixin):
     """Pattern specifying repetition with min/max count and greedy parameters.
@@ -504,7 +550,8 @@ something = anyone * repeat(min=1)
 padding = anyone * repeat(greedy=False)
 
 
-_Group = namedtuple('Group', 'pattern name')
+class _Group(Record):
+    __slots__ = 'pattern', 'name'
 
 class Group(PatternMixin):
     """Pattern specifying a group with name parameter.
@@ -530,7 +577,8 @@ class Group(PatternMixin):
 group = Group()
 
 
-_Options = namedtuple('Options', 'options')
+class _Options(Record):
+    __slots__ = 'options',
 
 class Options(PatternMixin):
     "Pattern specifying a sequence of options to match."
