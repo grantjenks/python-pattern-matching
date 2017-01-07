@@ -2,7 +2,7 @@ from nose.tools import raises
 
 import random
 from collections import namedtuple
-from patternmatching import match, like, bind, bound, repeat
+from patternmatching import match, like, bind, bound, repeat, group
 
 Point = namedtuple('Point', 'x y z t')
 
@@ -87,7 +87,7 @@ def test_basic():
 
 @raises(AttributeError)
 def test_bind_result():
-    if match(0, bind._push):
+    if match(0, bind.push):
         return 'zero'
     else:
         return 'nonzero'
@@ -113,8 +113,9 @@ def test_bind_repeat():
 
 
 def test_bind_repeat_alternate():
-    assert match([0, 1, 2, 1, 2], bind.any * repeat + [bind.value, 2, 1] + bind.any)
-    assert bound.value == 1
+    assert match([0, 1, 2, 1, 2], bind.any * repeat + bind.any * group('value') + [2, 1] + bind.any)
+    assert bound.value == [1]
+
 
 if __name__ == '__main__':
     import nose

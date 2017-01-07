@@ -5,26 +5,40 @@ Python pattern matching using a function-based approach.
 Python Pattern Matching contributions:
 
 * API for matching: __match__ and Matcher object for state
-* Method fo binding values to names
+* Method of binding values to names
 * Algorithm for patterns (generic regex)
 * New match rule for "types"
-* ...
 
 TODO:
 
-* Protect Name('result') from binder.
+* Add __match__ predicate and refactor cases
 * Improve docstrings with examples.
-* Need Details be Sequence type?
-* Todo: Undo name binding when backtracking in regex algorithm.
-  * Maybe need __unify__?
-  * Unification is a more generic idea than pattern matching. Extremely useful
-    for handling Mapping and Set cases where combinations occur.
-    * For Mapping and Set patterns: try all permutations of orders against
-      input value.
+* Bug: validate group against previous bindings:
+  match([1, 2, 3, 2], anyone * repeat + [anyone * group('value'), 2, anyone * group('value')])
+* Add Set predicate and action?
+  def set_predicate(matcher, value, pattern):
+      return isinstance(pattern, Set)
+
+  def set_action(matcher, value, pattern):
+      value_sequence = tuple(value)
+      for permutation in itertools.permutations(pattern):
+          try:
+              matcher.names.push()
+              matcher.visit(value_sequence, permutation)
+              matcher.names.pull()
+              return
+          except Mismatch:
+              matcher.names.undo()
+      else:
+          raise Mismatch
+* Add Mapping predicate and action?
+* Add Start and End to patterns
+* Add Name support as anyone * group('name') to patterns
+* Add Like support with backtracking to patterns
 
 """
 
-from collections import Sequence
+from collections import Sequence, Mapping
 from functools import wraps
 from sys import hexversion
 
@@ -32,7 +46,7 @@ infinity = float('inf')
 
 
 class Record(object):
-    """Mutable "named tuple" base class."""
+    """Mutable "named tuple"-like base class."""
     __slots__ = ()
 
     def __init__(self, *args):
@@ -45,7 +59,8 @@ class Record(object):
     def __eq__(self, that):
         if not isinstance(that, type(self)):
             return NotImplemented
-        return all(item == iota for item, iota in zip(self, that))
+        return (self.__slots__ == that.__slots__
+                and all(item == iota for item, iota in zip(self, that)))
 
     def __repr__(self):
         args = ', '.join(repr(item) for item in self)
@@ -71,17 +86,20 @@ base_cases = []
 
 
 class Mismatch(Exception):
-    "Raised by `Matcher` `Case` `action` functions to abort on mismatch."
+    "Raised by `action` functions of `Case` records to abort on mismatch."
     pass
 
 
 class Details(Sequence):
     """Abstract base class extending `Sequence` to define equality and hashing.
 
-    Assumes an attribute, `_details`, exists for comparison and hashing. Used
-    by `Pattern` and `PatternMixin` types.
+    Defines one slot, `_details`, for comparison and hashing.
+
+    Used by `Pattern` and `PatternMixin` types.
 
     """
+    __slots__ = '_details',
+
     def __eq__(self, that):
         return self._details == that._details
 
@@ -92,8 +110,29 @@ class Details(Sequence):
         return hash(self._details)
 
 
+def make_tuple(value):
+    """Return value as tuple.
+
+    >>> make_tuple((1, 2, 3))
+    (1, 2, 3)
+    >>> make_tuple('abc')
+    ('a', 'b', 'c')
+    >>> make_tuple([4, 5, 6])
+    (4, 5, 6)
+    >>> make_tuple(None)
+    (None,)
+
+    """
+    if isinstance(value, tuple):
+        return value
+    elif isinstance(value, Sequence):
+        return tuple(value)
+    else:
+        return (value,)
+
+
 class Pattern(Details):
-    """Wraps a tuple to extend the addition operator.
+    """Wrap tuple to extend addition operator.
 
     >>> Pattern()
     Pattern()
@@ -107,11 +146,8 @@ class Pattern(Details):
     [4, 5, 6]
 
     """
-    def __init__(self, *iterable):
-        if len(iterable) == 1:
-            iterable = iterable[0]
-        is_tuple = isinstance(iterable, tuple)
-        self._details = iterable if is_tuple else tuple(iterable)
+    def __init__(self, *args):
+        self._details = make_tuple(args[0] if len(args) == 1 else args)
 
     def __getitem__(self, index):
         return self._details[index]
@@ -120,28 +156,28 @@ class Pattern(Details):
         return len(self._details)
 
     def __add__(self, that):
-        if isinstance(that, tuple):
-            pass
-        elif isinstance(that, Sequence):
-            that = tuple(that)
-        else:
-            that = (that,)
-        return Pattern(self._details + that)
+        return Pattern(self._details + make_tuple(that))
 
     def __radd__(self, that):
-        if isinstance(that, tuple):
-            pass
-        elif isinstance(that, Sequence):
-            that = tuple(that)
-        else:
-            that = (that,)
-        return Pattern(that + self._details)
+        return Pattern(make_tuple(that) + self._details)
 
     def __repr__(self):
-        args = ', '.join(map(repr, self._details))
+        args = ', '.join(repr(value) for value in self._details)
         return '%s(%s)' % (type(self).__name__, args)
 
-    __str__ = __repr__
+
+def sequence(value):
+    """Return value as sequence.
+
+    >>> sequence('abc')
+    'abc'
+    >>> sequence(1)
+    (1,)
+    >>> sequence([1])
+    [1]
+
+    """
+    return value if isinstance(value, Sequence) else (value,)
 
 
 class PatternMixin(Details):
@@ -167,11 +203,6 @@ class PatternMixin(Details):
     def __mul__(self, that):
         return that.__rmul__(self)
 
-    def __rmul__(self, that):
-        if not isinstance(that, Sequence):
-            that = (that,)
-        return type(self)(that, *tuple(self._details)[1:])
-
     def __getattr__(self, name):
         return getattr(self._details, name)
 
@@ -179,8 +210,6 @@ class PatternMixin(Details):
         pairs = zip(self._details.__slots__, self._details)
         tokens = ('%s=%s' % (name, repr(value)) for name, value in pairs)
         return '%s(%s)' % (type(self).__name__, ', '.join(tokens))
-
-    __str__ = __repr__
 
 
 ###############################################################################
@@ -206,7 +235,6 @@ class Anyone(PatternMixin):
     def __repr__(self):
         return 'anyone'
 
-    __str__ = __repr__
 
 anyone = Anyone()
 
@@ -242,17 +270,17 @@ class Binder(object):
     A few attributes behave specially:
 
     * `bind.any` returns an `Anyone` object.
-    * `bind._push`, `bind._pop`, and `bind.restore` raise an AttributeError
+    * `bind.push`, `bind.pop`, and `bind.restore` raise an AttributeError
       because the names would conflict with `Bounder` attributes.
 
     >>> bind = Binder()
     >>> bind.head
-    Name(value='head')
+    Name('head')
     >>> bind.tail
-    Name(value='tail')
+    Name('tail')
     >>> bind.any
     anyone
-    >>> bind._push
+    >>> bind.push
     Traceback (most recent call last):
         ...
     AttributeError
@@ -261,7 +289,7 @@ class Binder(object):
     def __getattr__(self, name):
         if name == 'any':
             return anyone
-        elif name in ('_push', '_pop', 'restore'):
+        elif name in ('push', 'pop', 'restore'):
             raise AttributeError
         else:
             return Name(name)
@@ -301,13 +329,13 @@ base_cases.append(Case('names', name_predicate, name_action))
 class Like(Record):
     __slots__ = 'pattern', 'name'
 
-def like(pattern, name='result'):
-    """Return `Like` object with given `pattern` and `name`, default "result".
+def like(pattern, name='match'):
+    """Return `Like` object with given `pattern` and `name`, default "match".
 
     >>> like('abc.*')
-    Like(pattern='abc.*', name='result')
+    Like('abc.*', 'match')
     >>> like('abc.*', 'prefix')
-    Like(pattern='abc.*', name='prefix')
+    Like('abc.*', 'prefix')
 
     """
     return Like(pattern, name)
@@ -540,6 +568,9 @@ class Repeat(PatternMixin):
     def __init__(self, pattern=(), min=0, max=infinity, greedy=True):
         self._details = _Repeat(pattern, min, max, greedy)
 
+    def __rmul__(self, that):
+        return type(self)(sequence(that), *tuple(self._details)[1:])
+
     def __call__(self, min=0, max=infinity, greedy=True, pattern=()):
         return type(self)(pattern, min, max, greedy)
 
@@ -560,7 +591,7 @@ class Group(PatternMixin):
     capture patterns.
 
     >>> Group()
-    Group(pattern=(), name='')
+    Group(pattern=(), name=None)
     >>> Group(['red', 'blue', 'yellow'], 'color')
     Group(pattern=['red', 'blue', 'yellow'], name='color')
     >>> group = Group()
@@ -568,10 +599,13 @@ class Group(PatternMixin):
     Group(pattern=['red', 'blue', 'yellow'], name='color')
 
     """
-    def __init__(self, pattern=(), name=''):
+    def __init__(self, pattern=(), name=None):
         self._details = _Group(pattern, name)
 
-    def __call__(self, name='', pattern=()):
+    def __rmul__(self, that):
+        return type(self)(sequence(that), *tuple(self._details)[1:])
+
+    def __call__(self, name=None, pattern=()):
         return type(self)(pattern, name)
 
 group = Group()
@@ -583,21 +617,17 @@ class _Options(Record):
 class Options(PatternMixin):
     "Pattern specifying a sequence of options to match."
     def __init__(self, *options):
-        self._details = _Options(options)
+        self._details = _Options(tuple(map(sequence, options)))
 
-    def __call__(self, options=()):
+    def __call__(self, *options):
         return type(self)(*options)
 
     def __rmul__(self, that):
-        if not isinstance(that, Sequence):
-            that = (that,)
-        return type(self)(*that)
+        return type(self)(*sequence(that))
 
     def __repr__(self):
         args = ', '.join(map(repr, self._details.options))
         return '%s(%s)' % (type(self).__name__, args)
-
-    __str__ = __repr__
 
 
 class Either(Options):
@@ -629,9 +659,9 @@ def pattern_action(matcher, sequence, pattern):
     True
     >>> match([0, 0, 0, 0], 0 * repeat)
     True
-    >>> match('blue', either(['red', 'blue', 'yellow']))
+    >>> match('blue', either('red', 'blue', 'yellow'))
     True
-    >>> match([2, 4, 6], Exclude(like(lambda num: num % 2 == 1)))
+    >>> match([2, 4, 6], exclude(like(lambda num: num % 2)) * repeat(min=3))
     True
 
     """
@@ -675,14 +705,14 @@ def pattern_action(matcher, sequence, pattern):
 
             elif isinstance(item, Group):
                 for end in visit(item.pattern, 0, offset, 0):
-                    if item.name:
+                    if item.name is not None:
                         prev = names.pop(item.name, NONE)
                         names[item.name] = sequence[offset:end]
 
                     for stop in visit(pattern, index + 1, end, 0):
                         yield stop
 
-                    if item.name and prev is not NONE:
+                    if item.name is not None and prev is not NONE:
                         names[item.name] = prev
 
                 return
@@ -737,50 +767,126 @@ class Bounder(object):
     0
     >>> len(bound)
     1
-    >>> bound._pop()
+    >>> bound.pop()
     {'foo': 0}
     >>> len(bound)
     0
-    >>> bound._push({'bar': 1})
-    >>> bound[0]
-    {'bar': 1}
+    >>> bound.push({'bar': 1})
+    >>> len(bound)
+    1
 
     """
     def __init__(self, maps=()):
         self._maps = list(maps)
 
-    def __getattr__(self, name):
-        return self[-1][name]
+    def __getattr__(self, attr):
+        try:
+            return self._maps[-1][attr]
+        except IndexError, KeyError:
+            raise AttributeError(attr)
 
-    def __getitem__(self, index):
-        return self._maps[index]
+    def __getitem__(self, key):
+        try:
+            return self._maps[-1][key]
+        except IndexError:
+            raise KeyError(key)
+
+    def __eq__(self, that):
+        return self._maps[-1] == that
+
+    def __ne__(self, that):
+        return self._maps[-1] != that
+
+    def __iter__(self):
+        return iter(self._maps[-1])
 
     def __len__(self):
         return len(self._maps)
 
-    def _push(self, names):
-        self._maps.append(names)
+    def push(self, mapping):
+        self._maps.append(mapping)
 
-    def _pop(self):
+    def pop(self):
         return self._maps.pop()
 
-    def restore(self, func):
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            start = len(self)
-
-            try:
-                return func(*args, **kwargs)
-            finally:
-                while len(self) > start:
-                    self._pop()
-
-        return wrapper
+    def reset(self, func=None):
+        if func is None:
+            del self._maps[:]
+        else:
+            @wraps(func)
+            def wrapper(*args, **kwargs):
+                start = len(self._maps)
+                try:
+                    return func(*args, **kwargs)
+                finally:
+                    while len(self._maps) > start:
+                        self.pop()
+            return wrapper
 
     def __repr__(self):
         return '%s(%r)' % (type(self).__name__, self._maps)
 
-    __str__ = __repr__
+
+###############################################################################
+# Stack of mappings.
+###############################################################################
+
+class MapStack(Mapping):
+    def __init__(self, maps=()):
+        self._maps = list(maps) or [{}]
+
+    def push(self):
+        self._maps.append({})
+
+    def pull(self):
+        _maps = self._maps
+        mapping = _maps.pop()
+        accumulator = _maps[-1]
+        accumulator.update(mapping)
+
+    def undo(self):
+        return self._maps.pop()
+
+    def __getitem__(self, key):
+        for mapping in reversed(self._maps):
+            if key in mapping:
+                return mapping[key]
+        else:
+            raise KeyError(key)
+
+    def __setitem__(self, key, value):
+        self._maps[-1][key] = value
+
+    def __delitem__(self, key):
+        del self._maps[-1][key]
+
+    def pop(self, key, default=None):
+        return self._maps[-1].pop(key, default)
+
+    def __iter__(self):
+        return iter(set().union(*self._maps))
+
+    def __len__(self):
+        return len(set().union(*self._maps))
+
+    def __repr__(self):
+        return '%s(%r)' % (type(self).__name__, self._maps)
+
+    def get(self, key, default=None):
+        return self[key] if key in self else default
+
+    def __contains__(self, key):
+        return any(key in mapping for mapping in self._maps)
+
+    def __bool__(self):
+        return any(self._maps)
+
+    def copy(self):
+        return dict(self)
+
+    def reset(self):
+        del self._maps[1:]
+        self._maps[0].clear()
 
 
 ###############################################################################
@@ -807,36 +913,28 @@ class Matcher(object):
     5
 
     """
-    def __init__(self, cases=base_cases, bounder=Bounder):
-        self._cases = cases
-        self._bound = bounder()
-        self._names = {}
+    def __init__(self, cases=base_cases):
+        self.cases = cases
+        self.bound = Bounder()
+        self.names = MapStack()
 
     def match(self, value, pattern):
-        names = self._names
+        names = self.names
         try:
-            names['result'] = self.visit(value, pattern)
+            self.visit(value, pattern)
         except Mismatch:
             return False
         else:
-            self._bound._push(names.copy())
+            self.bound.push(names.copy())
         finally:
-            names.clear()
+            names.reset()
         return True
 
     def visit(self, value, pattern):
-        for name, predicate, action in self._cases:
+        for name, predicate, action in self.cases:
             if predicate(self, value, pattern):
                 return action(self, value, pattern)
         raise Mismatch
-
-    @property
-    def bound(self):
-        return self._bound
-
-    @property
-    def names(self):
-        return self._names
 
 
 matcher = Matcher()

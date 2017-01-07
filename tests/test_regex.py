@@ -56,16 +56,15 @@ def test_either_rmul_single():
 def test_either_repr():
     assert repr(pm.either) == 'Either()'
 
-@pm.bound.restore
+@pm.bound.reset
 def run(*args):
     pattern, value, result = args
     if result is None:
         assert not pm.match(value, pattern)
     else:
         assert pm.match(value, pattern)
-        result['result'] = result['_']
         del result['_']
-        assert pm.bound[-1].copy() == result
+        assert pm.bound == result
 
 def test_basic():
     run('', '', {'_': ''})
