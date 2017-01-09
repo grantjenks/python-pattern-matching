@@ -86,7 +86,7 @@ def test_groups():
        {'_': 'a', 1: 'a', 2: 'a', 3: 'a'})
     run(a_foo + 'b' + 'c' * pm.group(2), 'abc',
         {'_': 'abc', 1: 'a', 2: 'c'})
-    run(pm.Group(abc_e, name=1) * pm.repeat + 'd', 'abbbcd',
+    run(abc_e * pm.repeat + pm.Group(abc_e, name=1) + 'd', 'abbbcd',
         {'_': 'abbbcd', 1: 'c'})
     run(pm.Group(abc_e, name=1) * pm.repeat + 'bcd', 'abcd',
         {'_': 'abcd', 1: 'a'})
@@ -187,14 +187,14 @@ def test_misc():
     run(pm.Either(pm.Group('a') + pm.Group('b') + 'c', 'ab'), 'ab',
         {'_': 'ab'})
     run('a' * pm.group * pm.repeat(min=1) + 'x', 'aaax', {'_': 'aaax'})
-    run('ac' * pm.either * pm.group(1) * pm.repeat(min=1) + 'x', 'aacx',
+    run('ac' * pm.either * pm.group * pm.repeat(min=1) + 'ac' * pm.either * pm.group(1) + 'x', 'aacx',
         {'_': 'aacx', 1: 'c'})
-    run(pm.Group('/' * pm.exclude * pm.repeat + '/', 1) * pm.repeat + 'sub1/',
+    run(pm.padding + pm.Group('/' * pm.exclude * pm.repeat + '/', 1) + 'sub1/',
         'd:msgs/tdir/sub1/trial/away.cpp',
         {'_': 'd:msgs/tdir/sub1/', 1: 'tdir/'})
-    run(('N' * pm.exclude * pm.repeat + 'N') * pm.group(1) * pm.repeat(min=1),
+    run(('N' * pm.exclude * pm.repeat + 'N') * pm.group() * pm.repeat(min=1) + ('N' * pm.exclude * pm.repeat + 'N') * pm.group(1),
         'abNNxyzN', {'_': 'abNNxyzN', 1: 'xyzN'})
-    run(('N' * pm.exclude * pm.repeat + 'N') * pm.group(1) * pm.repeat(min=1),
+    run(('N' * pm.exclude * pm.repeat + 'N') * pm.group() * pm.repeat(min=1) + ('N' * pm.exclude * pm.repeat + 'N') * pm.group(1),
         'abNNxyz', {'_': 'abNN', 1: 'N'})
     run(abc_e * pm.repeat * pm.group(1) + 'x', 'abcx', {'_': 'abcx', 1: 'abc'})
     run(abc_e * pm.repeat * pm.group(1) + 'x', 'abc', None)

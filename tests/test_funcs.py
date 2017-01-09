@@ -113,7 +113,8 @@ def test_bind_repeat():
 
 
 def test_bind_repeat_alternate():
-    assert match([0, 1, 2, 1, 2], bind.any * repeat + bind.any * group('value') + [2, 1] + bind.any)
+    pattern = bind.any * repeat + bind.any * group('value') + [2, 1] + bind.any
+    assert match([0, 1, 2, 1, 2], pattern)
     assert bound.value == [1]
 
 
