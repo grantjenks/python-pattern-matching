@@ -300,23 +300,23 @@ def name_predicate(matcher, value, pattern):
     "Return True if `pattern` is an instance of `Name`."
     return isinstance(pattern, Name)
 
-def name_store(matcher, name, value):
-    """Store `value` in `matcher.names` with given `name`.
+def name_store(names, name, value):
+    """Store `value` in `names` with given `name`.
 
-    If `name` is already present in `matcher.names` then raise `Mismatch` on
-    inequality between `value` and stored value.
+    If `name` is already present in `names` then raise `Mismatch` on inequality
+    between `value` and stored value.
 
     """
-    if name in matcher.names:
-        if value == matcher.names[name]:
+    if name in names:
+        if value == names[name]:
             pass  # Prefer equality comparison to inequality.
         else:
             raise Mismatch
-    matcher.names[name] = value
+    names[name] = value
 
 def name_action(matcher, value, name):
     "Store `value` in `matcher` with name, `name.value`."
-    name_store(matcher, name.value, value)
+    name_store(matcher.names, name.value, value)
     return value
 
 base_cases.append(Case('names', name_predicate, name_action))
@@ -391,7 +391,7 @@ def like_action(matcher, value, pattern):
         raise Mismatch
 
     if name is not None:
-        name_store(matcher, name, result)
+        name_store(matcher.names, name, result)
 
     return result
 
@@ -724,7 +724,7 @@ def pattern_action(matcher, sequence, pattern):
                         names.push()
 
                         try:
-                            name_store(matcher, item.name, segment)
+                            name_store(names, item.name, segment)
                         except Mismatch:
                             names.undo()
                         else:
