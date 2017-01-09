@@ -668,6 +668,17 @@ def pattern_action(matcher, sequence, pattern):
     names = matcher.names
     len_sequence = len(sequence)
 
+    # Life is easier with generators. I tried twice to write "visit"
+    # recursively without success. Consider:
+    #
+    # match('abc', 'a' + 'b' * repeat * group + 'bc')
+    #
+    # Notice the "'b' * repeat" clause is nested within a group clause. When
+    # recursing, the "'b' * repeat" clause will match greedily against 'abc' at
+    # offset 1 but then the whole pattern will fail as 'bc' does not match at
+    # offset 2. So backtracking of the nested clause is required. Generators
+    # communicate multiple end offsets and support the needed backtracking.
+
     def visit(pattern, index, offset, count):
         len_pattern = len(pattern)
 
@@ -705,15 +716,22 @@ def pattern_action(matcher, sequence, pattern):
 
             elif isinstance(item, Group):
                 for end in visit(item.pattern, 0, offset, 0):
-                    if item.name is not None:
-                        prev = names.pop(item.name, NONE)
-                        names[item.name] = sequence[offset:end]
+                    if item.name is None:
+                        for stop in visit(pattern, index + 1, end, 0):
+                            yield stop
+                    else:
+                        segment = sequence[offset:end]
+                        names.push()
 
-                    for stop in visit(pattern, index + 1, end, 0):
-                        yield stop
+                        try:
+                            name_store(matcher, item.name, segment)
+                        except Mismatch:
+                            names.undo()
+                        else:
+                            for stop in visit(pattern, index + 1, end, 0):
+                                yield stop
 
-                    if item.name is not None and prev is not NONE:
-                        names[item.name] = prev
+                            names.undo()
 
                 return
 
