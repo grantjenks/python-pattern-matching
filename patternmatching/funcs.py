@@ -505,11 +505,7 @@ def sequence_predicate(matcher, value, pattern):
     instance of Sequence and lengths are equal.
 
     """
-    return (
-        isinstance(value, type(pattern))
-        and isinstance(pattern, Sequence)
-        and len(value) == len(pattern)
-    )
+    return isinstance(pattern, Sequence) and isinstance(value, type(pattern))
 
 if hexversion < 0x03000000:
     from itertools import izip as zip
@@ -527,6 +523,9 @@ def sequence_action(matcher, value, pattern):
     False
 
     """
+    if len(value) != len(pattern):
+        raise Mismatch
+
     pairs = zip(value, pattern)
     return tuple(matcher.visit(item, iota) for item, iota in pairs)
 
