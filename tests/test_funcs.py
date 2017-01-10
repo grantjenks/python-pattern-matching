@@ -2,7 +2,7 @@ from nose.tools import raises
 
 import random
 from collections import namedtuple
-from patternmatching import match, like, bind, bound, repeat, group
+from patternmatching import match, like, bind, bound, repeat, group, padding
 
 Point = namedtuple('Point', 'x y z t')
 
@@ -116,6 +116,22 @@ def test_bind_repeat_alternate():
     pattern = bind.any * repeat + bind.any * group('value') + [2, 1] + bind.any
     assert match([0, 1, 2, 1, 2], pattern)
     assert bound.value == [1]
+
+
+def test_bind_padding_name():
+    pattern = padding + [bind.value, bind.other, bind.value, 3]
+    assert match([1, 2, 1, 2, 1, 2, 3], pattern)
+    assert bound.value == 2
+    assert bound.other == 1
+
+
+def test_bind_padding_like():
+    def odd_num(value):
+        return value % 2 and value
+    pattern = padding + [like(odd_num, 'value'), like(odd_num, 'other'), like(odd_num, 'value'), 2]
+    assert match([3, 5, 3, 5, 3, 5, 2], pattern)
+    assert bound.value == 5
+    assert bound.other == 3
 
 
 if __name__ == '__main__':

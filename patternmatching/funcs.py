@@ -11,10 +11,10 @@ Python Pattern Matching contributions:
 
 TODO:
 
-* Add __match__ predicate and refactor cases
-* Improve docstrings with examples.
-* Bug: validate group against previous bindings:
-  match([1, 2, 3, 2], anyone * repeat + [anyone * group('value'), 2, anyone * group('value')])
+* Add __match__ predicate and refactor cases.
+  * I wonder, can Pattern cases be refactored? Maybe "visit" should allow case
+    action generators? isinstance(result, types.GeneratorType)
+* Add Start and End to patterns.
 * Add Set predicate and action?
   def set_predicate(matcher, value, pattern):
       return isinstance(pattern, Set)
@@ -32,9 +32,7 @@ TODO:
       else:
           raise Mismatch
 * Add Mapping predicate and action?
-* Add Start and End to patterns
-* Add Name support as anyone * group('name') to patterns
-* Add Like support with backtracking to patterns
+* Improve docstrings with examples.
 
 """
 
@@ -686,82 +684,86 @@ def pattern_action(matcher, sequence, pattern):
             yield offset
             return
 
-        while True:
-            item = pattern[index]
+        item = pattern[index]
 
-            if isinstance(item, Repeat):
-                if count > item.max:
-                    return
-
-                if item.greedy:
-                    if offset < len_sequence:
-                        for end in visit(item.pattern, 0, offset, count):
-                            for stop in visit(pattern, index, end, count + 1):
-                                yield stop
-
-                    if count >= item.min:
-                        for stop in visit(pattern, index + 1, offset, 0):
-                            yield stop
-                else:
-                    if count >= item.min:
-                        for stop in visit(pattern, index + 1, offset, 0):
-                            yield stop
-
-                    if offset < len_sequence:
-                        for end in visit(item.pattern, 0, offset, count):
-                            for stop in visit(pattern, index, end, count + 1):
-                                yield stop
-
+        if isinstance(item, Repeat):
+            if count > item.max:
                 return
 
-            elif isinstance(item, Group):
-                for end in visit(item.pattern, 0, offset, 0):
-                    if item.name is None:
-                        for stop in visit(pattern, index + 1, end, 0):
+            if item.greedy:
+                if offset < len_sequence:
+                    for end in visit(item.pattern, 0, offset, count):
+                        for stop in visit(pattern, index, end, count + 1):
                             yield stop
-                    else:
-                        segment = sequence[offset:end]
-                        names.push()
 
-                        try:
-                            name_store(names, item.name, segment)
-                        except Mismatch:
-                            names.undo()
-                        else:
-                            for stop in visit(pattern, index + 1, end, 0):
-                                yield stop
-
-                            names.undo()
-
-                return
-
-            elif isinstance(item, Either):
-                for option in item.options:
-                    for end in visit(option, 0, offset, 0):
-                        for stop in visit(pattern, index + 1, end, 0):
-                            yield stop
-                return
-
-            elif isinstance(item, Exclude):
-                for option in item.options:
-                    for end in visit(option, 0, offset, 0):
-                        return
-
+                if count >= item.min:
+                    for stop in visit(pattern, index + 1, offset, 0):
+                        yield stop
             else:
-                if offset >= len_sequence:
-                    return
+                if count >= item.min:
+                    for stop in visit(pattern, index + 1, offset, 0):
+                        yield stop
+
+                if offset < len_sequence:
+                    for end in visit(item.pattern, 0, offset, count):
+                        for stop in visit(pattern, index, end, count + 1):
+                            yield stop
+
+            return
+
+        elif isinstance(item, Group):
+            for end in visit(item.pattern, 0, offset, 0):
+                if item.name is None:
+                    for stop in visit(pattern, index + 1, end, 0):
+                        yield stop
                 else:
+                    segment = sequence[offset:end]
+                    names.push()
+
                     try:
-                        matcher.visit(sequence[offset], item)
+                        name_store(names, item.name, segment)
                     except Mismatch:
-                        return
+                        names.undo()
+                    else:
+                        for stop in visit(pattern, index + 1, end, 0):
+                            yield stop
 
-            index += 1
-            offset += 1
+                        names.undo()
 
-            if index == len_pattern:
-                yield offset
+            return
+
+        elif isinstance(item, Either):
+            for option in item.options:
+                for end in visit(option, 0, offset, 0):
+                    for stop in visit(pattern, index + 1, end, 0):
+                        yield stop
+            return
+
+        elif isinstance(item, Exclude):
+            for option in item.options:
+                for end in visit(option, 0, offset, 0):
+                    return
+
+            for end in visit(pattern, index + 1, offset + 1, 0):
+                yield end
+
+        else:
+            if offset >= len_sequence:
                 return
+            else:
+                names.push()
+
+                try:
+                    matcher.visit(sequence[offset], item)
+                except Mismatch:
+                    names.undo()
+                else:
+                    for end in visit(pattern, index + 1, offset + 1, 0):
+                        yield end
+
+                    names.undo()
+
+            return
 
     for end in visit(pattern, 0, 0, 0):
         return sequence[:end]
