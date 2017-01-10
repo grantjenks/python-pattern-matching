@@ -211,6 +211,20 @@ class PatternMixin(Details):
 
 
 ###############################################################################
+# Match Case: __match__
+###############################################################################
+
+def match_predicate(matcher, value, pattern):
+    return hasattr(pattern, '__match__')
+
+def match_action(matcher, value, pattern):
+    attr = getattr(pattern, '__match__')
+    return attr(matcher, value, pattern)
+
+base_cases.append(Case('__match__', match_predicate, match_action))
+
+
+###############################################################################
 # Match Case: anyone
 ###############################################################################
 
@@ -230,21 +244,14 @@ class Anyone(PatternMixin):
     def __init__(self):
         self._details = ()
 
+    def __match__(self, matcher, value, pattern):
+        "Return `value` because `anyone` matches any one thing."
+        return value
+
     def __repr__(self):
         return 'anyone'
 
-
 anyone = Anyone()
-
-def anyone_predicate(matcher, value, pattern):
-    "Return True if `pattern` is an instance of `Anyone`."
-    return isinstance(pattern, Anyone)
-
-def anyone_action(matcher, value, anyone):
-    "Return `value` because `anyone` matches any one thing."
-    return value
-
-base_cases.append(Case('anyone', anyone_predicate, anyone_action))
 
 
 ###############################################################################
