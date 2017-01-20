@@ -219,7 +219,7 @@ def match_predicate(matcher, value, pattern):
 
 def match_action(matcher, value, pattern):
     attr = getattr(pattern, '__match__')
-    return attr(matcher, value, pattern)
+    return attr(matcher, value)
 
 base_cases.append(Case('__match__', match_predicate, match_action))
 
@@ -244,9 +244,9 @@ class Anyone(PatternMixin):
     def __init__(self):
         self._details = ()
 
-    def __match__(self, matcher, value, pattern):
-        "Return `value` because `anyone` matches any one thing."
-        return value
+    def __match__(self, matcher, value):
+        "Pass because `anyone` matches any one thing."
+        pass
 
     def __repr__(self):
         return 'anyone'
@@ -269,13 +269,31 @@ class Name(Record):
     """
     __slots__ = 'value',
 
+    def __match__(self, matcher, value):
+        "Store `value` in `matcher` with `name` and return `value`."
+        name_store(matcher.names, self.value, value)
+
+def name_store(names, name, value):
+    """Store `value` in `names` with given `name`.
+
+    If `name` is already present in `names` then raise `Mismatch` on inequality
+    between `value` and stored value.
+
+    """
+    if name in names:
+        if value == names[name]:
+            pass  # Prefer equality comparison to inequality.
+        else:
+            raise Mismatch
+    names[name] = value
+
 class Binder(object):
     """Binder objects return Name objects on attribute lookup.
 
     A few attributes behave specially:
 
     * `bind.any` returns an `Anyone` object.
-    * `bind.push`, `bind.pop`, and `bind.restore` raise an AttributeError
+    * `bind.push`, `bind.pop`, and `bind.reset` raise an AttributeError
       because the names would conflict with `Bounder` attributes.
 
     >>> bind = Binder()
@@ -294,45 +312,69 @@ class Binder(object):
     def __getattr__(self, name):
         if name == 'any':
             return anyone
-        elif name in ('push', 'pop', 'restore'):
+        elif name in ('push', 'pop', 'reset'):
             raise AttributeError
         else:
             return Name(name)
 
 bind = Binder()
 
-def name_predicate(matcher, value, pattern):
-    "Return True if `pattern` is an instance of `Name`."
-    return isinstance(pattern, Name)
-
-def name_store(names, name, value):
-    """Store `value` in `names` with given `name`.
-
-    If `name` is already present in `names` then raise `Mismatch` on inequality
-    between `value` and stored value.
-
-    """
-    if name in names:
-        if value == names[name]:
-            pass  # Prefer equality comparison to inequality.
-        else:
-            raise Mismatch
-    names[name] = value
-
-def name_action(matcher, value, name):
-    "Store `value` in `matcher` with name, `name.value`."
-    name_store(matcher.names, name.value, value)
-    return value
-
-base_cases.append(Case('names', name_predicate, name_action))
-
 
 ###############################################################################
 # Match Case: likes
 ###############################################################################
 
+import re
+
+if hexversion > 0x03000000:
+    unicode = str
+
+like_errors = (
+    AttributeError, LookupError, NotImplementedError, TypeError, ValueError
+)
+
 class Like(Record):
     __slots__ = 'pattern', 'name'
+
+    def __match__(self, matcher, value):
+        """Apply `pattern` to `value` and store result in `matcher`.
+
+        Given `pattern` is expected as `Like` instance and deconstructed by
+        attribute into `pattern` and `name`.
+
+        When `pattern` is text then it is used as a regular expression.
+
+        When `name` is None then the result is not stored in `matcher.names`.
+
+        Raises `Mismatch` if callable raises exception in `like_errors` or
+        result is falsy.
+
+        >>> match('abcdef', like('abc.*'))
+        True
+        >>> match(123, like(lambda num: num % 2 == 0))
+        False
+
+        """
+        pattern = self.pattern
+        name = self.name
+
+        if isinstance(pattern, (str, unicode)):
+            if not isinstance(value, (str, unicode)):
+                raise Mismatch
+            func = lambda value: re.match(pattern, value)
+        else:
+            func = pattern
+
+        try:
+            result = func(value)
+        except like_errors:
+            raise Mismatch
+
+        if not result:
+            raise Mismatch
+
+        if name is not None:
+            name_store(matcher.names, name, result)
 
 def like(pattern, name='match'):
     """Return `Like` object with given `pattern` and `name`, default "match".
@@ -344,63 +386,6 @@ def like(pattern, name='match'):
 
     """
     return Like(pattern, name)
-
-def like_predicate(matcher, value, pattern):
-    "Return True if `pattern` is an instance of `Like`."
-    return isinstance(pattern, Like)
-
-import re
-
-if hexversion > 0x03000000:
-    unicode = str
-
-like_errors = (
-    AttributeError, LookupError, NotImplementedError, TypeError, ValueError
-)
-
-def like_action(matcher, value, pattern):
-    """Apply `pattern` as callable to `value` and store result in `matcher`.
-
-    Given `pattern` is expected as `Like` instance and deconstructed by
-    attribute into `name` and `pattern`.
-
-    When `pattern` is text then it is used as a regular expression.
-
-    When `name` is None then the result is not stored in `matcher.names`.
-
-    Raises `Mismatch` if callable raises exception in `like_errors` or result
-    is falsy.
-
-    >>> match('abcdef', like('abc.*'))
-    True
-    >>> match(123, like(lambda num: num % 2 == 0))
-    False
-
-    """
-    name = pattern.name
-    pattern = pattern.pattern
-
-    if isinstance(pattern, (str, unicode)):
-        if not isinstance(value, (str, unicode)):
-            raise Mismatch
-        func = lambda value: re.match(pattern, value)
-    else:
-        func = pattern
-
-    try:
-        result = func(value)
-    except like_errors:
-        raise Mismatch
-
-    if not result:
-        raise Mismatch
-
-    if name is not None:
-        name_store(matcher.names, name, result)
-
-    return result
-
-base_cases.append(Case('likes', like_predicate, like_action))
 
 
 ###############################################################################
@@ -762,12 +747,12 @@ def pattern_action(matcher, sequence, pattern):
                 try:
                     matcher.visit(sequence[offset], item)
                 except Mismatch:
-                    names.undo()
+                    pass
                 else:
                     for end in visit(pattern, index + 1, offset + 1, 0):
                         yield end
 
-                    names.undo()
+                names.undo()
 
             return
 
@@ -902,7 +887,7 @@ class MapStack(Mapping):
         return self[key] if key in self else default
 
     def __contains__(self, key):
-        return any(key in mapping for mapping in self._maps)
+        return any(key in mapping for mapping in reversed(self._maps))
 
     def __bool__(self):
         return any(self._maps)
