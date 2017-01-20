@@ -88,7 +88,25 @@ class Mismatch(Exception):
     pass
 
 
-class Details(Sequence):
+###############################################################################
+# Match Case: __match__
+###############################################################################
+
+def match_predicate(matcher, value, pattern):
+    return hasattr(pattern, '__match__')
+
+def match_action(matcher, value, pattern):
+    attr = getattr(pattern, '__match__')
+    return attr(matcher, value)
+
+base_cases.append(Case('__match__', match_predicate, match_action))
+
+
+###############################################################################
+# Match Case: patterns
+###############################################################################
+
+class APattern(Sequence):
     """Abstract base class extending `Sequence` to define equality and hashing.
 
     Defines one slot, `_details`, for comparison and hashing.
@@ -106,6 +124,129 @@ class Details(Sequence):
 
     def __hash__(self):
         return hash(self._details)
+
+    def __match__(self, matcher, value):
+        """Match `pattern` to `value` with `Pattern` semantics.
+
+        The `Pattern` type is used to define semantics like regular expressions.
+
+        >>> match([0, 1, 2], [0, 1] + anyone)
+        True
+        >>> match([0, 0, 0, 0], 0 * repeat)
+        True
+        >>> match('blue', either('red', 'blue', 'yellow'))
+        True
+        >>> match([2, 4, 6], exclude(like(lambda num: num % 2)) * repeat(min=3))
+        True
+
+        """
+        names = matcher.names
+        len_value = len(value)
+
+        # Life is easier with generators. I tried twice to write "visit"
+        # recursively without success. Consider:
+        #
+        # match('abc', 'a' + 'b' * repeat * group + 'bc')
+        #
+        # Notice the "'b' * repeat" clause is nested within a group
+        # clause. When recursing, the "'b' * repeat" clause will match greedily
+        # against 'abc' at offset 1 but then the whole pattern will fail as
+        # 'bc' does not match at offset 2. So backtracking of the nested clause
+        # is required. Generators communicate multiple end offsets and support
+        # the needed backtracking.
+
+        def visit(pattern, index, offset, count):
+            len_pattern = len(pattern)
+
+            if index == len_pattern:
+                yield offset
+                return
+
+            item = pattern[index]
+
+            if isinstance(item, Repeat):
+                if count > item.max:
+                    return
+
+                if item.greedy:
+                    if offset < len_value:
+                        for end in visit(item.pattern, 0, offset, count):
+                            for stop in visit(pattern, index, end, count + 1):
+                                yield stop
+
+                    if count >= item.min:
+                        for stop in visit(pattern, index + 1, offset, 0):
+                            yield stop
+                else:
+                    if count >= item.min:
+                        for stop in visit(pattern, index + 1, offset, 0):
+                            yield stop
+
+                    if offset < len_value:
+                        for end in visit(item.pattern, 0, offset, count):
+                            for stop in visit(pattern, index, end, count + 1):
+                                yield stop
+
+                return
+
+            elif isinstance(item, Group):
+                for end in visit(item.pattern, 0, offset, 0):
+                    if item.name is None:
+                        for stop in visit(pattern, index + 1, end, 0):
+                            yield stop
+                    else:
+                        segment = value[offset:end]
+                        names.push()
+
+                        try:
+                            name_store(names, item.name, segment)
+                        except Mismatch:
+                            names.undo()
+                        else:
+                            for stop in visit(pattern, index + 1, end, 0):
+                                yield stop
+
+                            names.undo()
+
+                return
+
+            elif isinstance(item, Either):
+                for option in item.options:
+                    for end in visit(option, 0, offset, 0):
+                        for stop in visit(pattern, index + 1, end, 0):
+                            yield stop
+                return
+
+            elif isinstance(item, Exclude):
+                for option in item.options:
+                    for end in visit(option, 0, offset, 0):
+                        return
+
+                for end in visit(pattern, index + 1, offset + 1, 0):
+                    yield end
+
+            else:
+                if offset >= len_value:
+                    return
+                else:
+                    names.push()
+
+                    try:
+                        matcher.visit(value[offset], item)
+                    except Mismatch:
+                        pass
+                    else:
+                        for end in visit(pattern, index + 1, offset + 1, 0):
+                            yield end
+
+                    names.undo()
+
+                return
+
+        for end in visit(self, 0, 0, 0):
+            return value[:end]
+        else:
+            raise Mismatch
 
 
 def make_tuple(value):
@@ -129,7 +270,7 @@ def make_tuple(value):
         return (value,)
 
 
-class Pattern(Details):
+class Pattern(APattern):
     """Wrap tuple to extend addition operator.
 
     >>> Pattern()
@@ -164,21 +305,7 @@ class Pattern(Details):
         return '%s(%s)' % (type(self).__name__, args)
 
 
-def sequence(value):
-    """Return value as sequence.
-
-    >>> sequence('abc')
-    'abc'
-    >>> sequence(1)
-    (1,)
-    >>> sequence([1])
-    [1]
-
-    """
-    return value if isinstance(value, Sequence) else (value,)
-
-
-class PatternMixin(Details):
+class PatternMixin(APattern):
     """Abstract base class to wrap a tuple to extend multiplication and
     addition.
 
@@ -211,20 +338,6 @@ class PatternMixin(Details):
 
 
 ###############################################################################
-# Match Case: __match__
-###############################################################################
-
-def match_predicate(matcher, value, pattern):
-    return hasattr(pattern, '__match__')
-
-def match_action(matcher, value, pattern):
-    attr = getattr(pattern, '__match__')
-    return attr(matcher, value)
-
-base_cases.append(Case('__match__', match_predicate, match_action))
-
-
-###############################################################################
 # Match Case: anyone
 ###############################################################################
 
@@ -252,6 +365,136 @@ class Anyone(PatternMixin):
         return 'anyone'
 
 anyone = Anyone()
+
+
+###############################################################################
+# Match Case: repeat
+###############################################################################
+
+def sequence(value):
+    """Return value as sequence.
+
+    >>> sequence('abc')
+    'abc'
+    >>> sequence(1)
+    (1,)
+    >>> sequence([1])
+    [1]
+
+    """
+    return value if isinstance(value, Sequence) else (value,)
+
+class _Repeat(Record):
+    __slots__ = 'pattern', 'min', 'max', 'greedy'
+
+class Repeat(PatternMixin):
+    """Pattern specifying repetition with min/max count and greedy parameters.
+
+    Inherits from `PatternMixin` which defines multiplication operators to
+    capture patterns.
+
+    >>> Repeat()
+    Repeat(pattern=(), min=0, max=inf, greedy=True)
+    >>> repeat = Repeat()
+    >>> repeat(max=1)
+    Repeat(pattern=(), min=0, max=1, greedy=True)
+    >>> maybe = repeat(max=1)
+    >>> Repeat(anyone)
+    Repeat(pattern=anyone, min=0, max=inf, greedy=True)
+    >>> anyone * repeat
+    Repeat(pattern=anyone, min=0, max=inf, greedy=True)
+    >>> anything = anyone * repeat
+    >>> anyone * repeat(min=1)
+    Repeat(pattern=anyone, min=1, max=inf, greedy=True)
+    >>> something = anyone * repeat(min=1)
+    >>> padding = anyone * repeat(greedy=False)
+
+    """
+    def __init__(self, pattern=(), min=0, max=infinity, greedy=True):
+        self._details = _Repeat(pattern, min, max, greedy)
+
+    def __rmul__(self, that):
+        return type(self)(sequence(that), *tuple(self._details)[1:])
+
+    def __call__(self, min=0, max=infinity, greedy=True, pattern=()):
+        return type(self)(pattern, min, max, greedy)
+
+repeat = Repeat()
+maybe = repeat(max=1)
+anything = anyone * repeat
+something = anyone * repeat(min=1)
+padding = anyone * repeat(greedy=False)
+
+
+###############################################################################
+# Match Case: groups
+###############################################################################
+
+class _Group(Record):
+    __slots__ = 'pattern', 'name'
+
+class Group(PatternMixin):
+    """Pattern specifying a group with name parameter.
+
+    Inherits from `PatternMixin` which defines multiplication operators to
+    capture patterns.
+
+    >>> Group()
+    Group(pattern=(), name=None)
+    >>> Group(['red', 'blue', 'yellow'], 'color')
+    Group(pattern=['red', 'blue', 'yellow'], name='color')
+    >>> group = Group()
+    >>> ['red', 'blue', 'yellow'] * group('color')
+    Group(pattern=['red', 'blue', 'yellow'], name='color')
+
+    """
+    def __init__(self, pattern=(), name=None):
+        self._details = _Group(pattern, name)
+
+    def __rmul__(self, that):
+        return type(self)(sequence(that), *tuple(self._details)[1:])
+
+    def __call__(self, name=None, pattern=()):
+        return type(self)(pattern, name)
+
+group = Group()
+
+
+###############################################################################
+# Match Case: options
+###############################################################################
+
+class _Options(Record):
+    __slots__ = 'options',
+
+class Options(PatternMixin):
+    "Pattern specifying a sequence of options to match."
+    def __init__(self, *options):
+        self._details = _Options(tuple(map(sequence, options)))
+
+    def __call__(self, *options):
+        return type(self)(*options)
+
+    def __rmul__(self, that):
+        return type(self)(*sequence(that))
+
+    def __repr__(self):
+        args = ', '.join(map(repr, self._details.options))
+        return '%s(%s)' % (type(self).__name__, args)
+
+
+class Either(Options):
+    "Pattern specifying that any of options may match."
+    pass
+
+either = Either()
+
+
+class Exclude(Options):
+    "Pattern specifying that none of options may match."
+    pass
+
+exclude = Exclude()
 
 
 ###############################################################################
@@ -522,246 +765,6 @@ def sequence_action(matcher, value, pattern):
     return tuple(matcher.visit(item, iota) for item, iota in pairs)
 
 base_cases.append(Case('sequences', sequence_predicate, sequence_action))
-
-
-###############################################################################
-# Match Case: patterns
-###############################################################################
-
-class _Repeat(Record):
-    __slots__ = 'pattern', 'min', 'max', 'greedy'
-
-class Repeat(PatternMixin):
-    """Pattern specifying repetition with min/max count and greedy parameters.
-
-    Inherits from `PatternMixin` which defines multiplication operators to
-    capture patterns.
-
-    >>> Repeat()
-    Repeat(pattern=(), min=0, max=inf, greedy=True)
-    >>> repeat = Repeat()
-    >>> repeat(max=1)
-    Repeat(pattern=(), min=0, max=1, greedy=True)
-    >>> maybe = repeat(max=1)
-    >>> Repeat(anyone)
-    Repeat(pattern=anyone, min=0, max=inf, greedy=True)
-    >>> anyone * repeat
-    Repeat(pattern=anyone, min=0, max=inf, greedy=True)
-    >>> anything = anyone * repeat
-    >>> anyone * repeat(min=1)
-    Repeat(pattern=anyone, min=1, max=inf, greedy=True)
-    >>> something = anyone * repeat(min=1)
-    >>> padding = anyone * repeat(greedy=False)
-
-    """
-    def __init__(self, pattern=(), min=0, max=infinity, greedy=True):
-        self._details = _Repeat(pattern, min, max, greedy)
-
-    def __rmul__(self, that):
-        return type(self)(sequence(that), *tuple(self._details)[1:])
-
-    def __call__(self, min=0, max=infinity, greedy=True, pattern=()):
-        return type(self)(pattern, min, max, greedy)
-
-repeat = Repeat()
-maybe = repeat(max=1)
-anything = anyone * repeat
-something = anyone * repeat(min=1)
-padding = anyone * repeat(greedy=False)
-
-
-class _Group(Record):
-    __slots__ = 'pattern', 'name'
-
-class Group(PatternMixin):
-    """Pattern specifying a group with name parameter.
-
-    Inherits from `PatternMixin` which defines multiplication operators to
-    capture patterns.
-
-    >>> Group()
-    Group(pattern=(), name=None)
-    >>> Group(['red', 'blue', 'yellow'], 'color')
-    Group(pattern=['red', 'blue', 'yellow'], name='color')
-    >>> group = Group()
-    >>> ['red', 'blue', 'yellow'] * group('color')
-    Group(pattern=['red', 'blue', 'yellow'], name='color')
-
-    """
-    def __init__(self, pattern=(), name=None):
-        self._details = _Group(pattern, name)
-
-    def __rmul__(self, that):
-        return type(self)(sequence(that), *tuple(self._details)[1:])
-
-    def __call__(self, name=None, pattern=()):
-        return type(self)(pattern, name)
-
-group = Group()
-
-
-class _Options(Record):
-    __slots__ = 'options',
-
-class Options(PatternMixin):
-    "Pattern specifying a sequence of options to match."
-    def __init__(self, *options):
-        self._details = _Options(tuple(map(sequence, options)))
-
-    def __call__(self, *options):
-        return type(self)(*options)
-
-    def __rmul__(self, that):
-        return type(self)(*sequence(that))
-
-    def __repr__(self):
-        args = ', '.join(map(repr, self._details.options))
-        return '%s(%s)' % (type(self).__name__, args)
-
-
-class Either(Options):
-    "Pattern specifying that any of options may match."
-    pass
-
-either = Either()
-
-
-class Exclude(Options):
-    "Pattern specifying that none of options may match."
-    pass
-
-exclude = Exclude()
-
-
-NONE = object()
-
-def pattern_predicate(matcher, value, pattern):
-    "Return True if `pattern` is an instance of `Pattern` or `PatternMixin`."
-    return isinstance(pattern, (Pattern, PatternMixin))
-
-def pattern_action(matcher, sequence, pattern):
-    """Match `pattern` to `sequence` with `Pattern` semantics.
-
-    The `Pattern` type is used to define semantics like regular expressions.
-
-    >>> match([0, 1, 2], [0, 1] + anyone)
-    True
-    >>> match([0, 0, 0, 0], 0 * repeat)
-    True
-    >>> match('blue', either('red', 'blue', 'yellow'))
-    True
-    >>> match([2, 4, 6], exclude(like(lambda num: num % 2)) * repeat(min=3))
-    True
-
-    """
-    names = matcher.names
-    len_sequence = len(sequence)
-
-    # Life is easier with generators. I tried twice to write "visit"
-    # recursively without success. Consider:
-    #
-    # match('abc', 'a' + 'b' * repeat * group + 'bc')
-    #
-    # Notice the "'b' * repeat" clause is nested within a group clause. When
-    # recursing, the "'b' * repeat" clause will match greedily against 'abc' at
-    # offset 1 but then the whole pattern will fail as 'bc' does not match at
-    # offset 2. So backtracking of the nested clause is required. Generators
-    # communicate multiple end offsets and support the needed backtracking.
-
-    def visit(pattern, index, offset, count):
-        len_pattern = len(pattern)
-
-        if index == len_pattern:
-            yield offset
-            return
-
-        item = pattern[index]
-
-        if isinstance(item, Repeat):
-            if count > item.max:
-                return
-
-            if item.greedy:
-                if offset < len_sequence:
-                    for end in visit(item.pattern, 0, offset, count):
-                        for stop in visit(pattern, index, end, count + 1):
-                            yield stop
-
-                if count >= item.min:
-                    for stop in visit(pattern, index + 1, offset, 0):
-                        yield stop
-            else:
-                if count >= item.min:
-                    for stop in visit(pattern, index + 1, offset, 0):
-                        yield stop
-
-                if offset < len_sequence:
-                    for end in visit(item.pattern, 0, offset, count):
-                        for stop in visit(pattern, index, end, count + 1):
-                            yield stop
-
-            return
-
-        elif isinstance(item, Group):
-            for end in visit(item.pattern, 0, offset, 0):
-                if item.name is None:
-                    for stop in visit(pattern, index + 1, end, 0):
-                        yield stop
-                else:
-                    segment = sequence[offset:end]
-                    names.push()
-
-                    try:
-                        name_store(names, item.name, segment)
-                    except Mismatch:
-                        names.undo()
-                    else:
-                        for stop in visit(pattern, index + 1, end, 0):
-                            yield stop
-
-                        names.undo()
-
-            return
-
-        elif isinstance(item, Either):
-            for option in item.options:
-                for end in visit(option, 0, offset, 0):
-                    for stop in visit(pattern, index + 1, end, 0):
-                        yield stop
-            return
-
-        elif isinstance(item, Exclude):
-            for option in item.options:
-                for end in visit(option, 0, offset, 0):
-                    return
-
-            for end in visit(pattern, index + 1, offset + 1, 0):
-                yield end
-
-        else:
-            if offset >= len_sequence:
-                return
-            else:
-                names.push()
-
-                try:
-                    matcher.visit(sequence[offset], item)
-                except Mismatch:
-                    pass
-                else:
-                    for end in visit(pattern, index + 1, offset + 1, 0):
-                        yield end
-
-                names.undo()
-
-            return
-
-    for end in visit(pattern, 0, 0, 0):
-        return sequence[:end]
-    else:
-        raise Mismatch
-
-base_cases.append(Case('patterns', pattern_predicate, pattern_action))
 
 
 ###############################################################################
