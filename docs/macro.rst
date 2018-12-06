@@ -1,5 +1,5 @@
-PyPatt Macro Implementation
-===========================
+Pattern Matching Macro Implementation
+=====================================
 
 .. warning::
 
@@ -12,7 +12,7 @@ matching. I know you offer me ``if``/``elif``/``else`` statements but I need
 more. I'm going to abuse your ``with`` statements. Guido, et al, I hope you can
 forgive me. This will only hurt a little.
 
-Presenting: PyPatt - pattern matching in Python with code transforms.
+Presenting: pattern matching in Python with macro-like AST transforms.
 
 A lot of people have tried to make this work before. Somehow it didn't take. I
 should probably call this yet-another-python-pattern-matching-module but
@@ -21,37 +21,38 @@ operators and changing codecs. This module started as a codec hack but those are
 hard because they need an ecosystem of emacs-modes, vim-modes and the like to
 really be convenient.
 
-PyPatt takes a different approach. No import hooks, no codecs, no operator
-overloads. Instead, I present a function decorator. Apply ``@pypatt.transform``
-and you're off to the races. Let's take a look:
+Python pattern matching with macros takes a different approach. No import
+hooks, no codecs, no operator overloads. Instead, I present a function
+decorator. Apply ``@patternmatching.transform`` and you're off to the
+races. Let's take a look:
 
 .. code-block:: python
    :linenos:
    :emphasize-lines: 3,9,10
 
-   import pypatt
+    import patternmatching
 
-   @pypatt.transform
-   def test_demo():
-       values = [[1, 2, 3], ('a', 'b', 'c'), 'hello world',
-           False, [4, 5, 6], (1, ['a', True, (0,)], 3)]
+    @patternmatching.transform
+    def test_demo():
+        values = [[1, 2, 3], ('a', 'b', 'c'), 'hello world',
+            False, [4, 5, 6], (1, ['a', True, (0,)], 3)]
 
-       for value in values:
-           with match(value):
-               with 'hello world':
-                   print 'Match strings!'
-               with False:
-                   print 'Match booleans!'
-               with [1, 2, 3]:
-                   print 'Match lists!'
-               with ('a', 'b', 'c'):
-                   print 'Match tuples!'
-               with [4, 5, quote(temp)]:
-                   print 'Bind variables! temp =', temp
-               with (1, ['a', True, quote(result)], 3):
-                   print 'Nest expressions! result =', result
+        for value in values:
+            with match(value):
+                with 'hello world':
+                    print 'Match strings!'
+                with False:
+                    print 'Match booleans!'
+                with [1, 2, 3]:
+                    print 'Match lists!'
+                with ('a', 'b', 'c'):
+                    print 'Match tuples!'
+                with [4, 5, quote(temp)]:
+                    print 'Bind variables! temp =', temp
+                with (1, ['a', True, quote(result)], 3):
+                    print 'Nest expressions! result =', result
 
-       print 'Wow, pretty great!'
+        print 'Wow, pretty great!'
 
 Finally, pythonic pattern matching! If you've experienced the feature before in
 "functional" languages like Erlang, Haskell, Clojure, F#, OCaml, etc. then you
@@ -67,8 +68,8 @@ were described in the standard docs, it would look like:
 Hopefully, you noticed the ``match`` and ``quote`` function calls. Those aren't
 really function calls and you can change them as needed. ``match`` works by
 identifying the ``with`` statement as a match-statement. It would be nice if
-Python had a way to define your own types of statements but that's beyond the
-scope of this project.
+Python had a way to define your own custom statement kinds but that's beyond
+the scope of this project.
 
 It might have read better if I'd used an ``if`` statement rather than
 ``with``. In that case you would read:
@@ -83,9 +84,9 @@ It might have read better if I'd used an ``if`` statement rather than
 
 This has the benefit of sounding better: "if match expression with True ...".
 But ``if`` statements don't support the ``as`` syntax. So if you put something
-complex inside the ``match`` parens, you can't bind it to a name. You might
-instead bind it to a name on the nested ``with`` statements but I'm doing all
-this to save keystrokes so that works against the goal.
+complex inside the ``match`` parenthenses then you can't bind it to a name. You
+might instead bind it to a name on the nested ``with`` statements but I'm doing
+all this to save keystrokes so that works against the goal.
 
 Now, regarding the ``quote`` function call (that is not really a function call
 at all). You can only put the name of a variable within that call and if you do
@@ -109,7 +110,7 @@ stating an ``OrderedDict`` in an expression. Maybe ``OrderedDict{'foo': 20,
 Caveats
 -------
 
-- ``@pypatt.transform`` must be the inner-most decorator.
+- ``@patternmatching.transform`` must be the inner-most decorator.
 - Does not support lambda functions.
 - Does not work on nested functions.
 - Requires inspect.getsource to work.
@@ -118,13 +119,35 @@ Caveats
 Examples
 --------
 
-- Type-pattern:
+.. code-block:: python
+   :linenos:
 
-::
+    import patternmatching
 
-    import pypatt, math
+    @patternmatching.transform
+    def factorial(num):
+        with match(num):
+            with 1:
+                return 1
+            with _:
+                return num * factorial(num - 1)
 
-    @pypatt.transform
+.. todo::
+
+   Show translated source code.
+
+.. code-block:: python
+   :linenos:
+
+    import math, patternmatching
+    from collections import namedtuple
+
+    Triangle = namedtuple('Triangle', 'base height')
+    Square = namedtuple('Square', 'side')
+    Rectangle = namedtuple('Rectangle', 'length width')
+    Circle = namedtuple('Circle', 'radius')
+
+    @patternmatching.transform
     def area(shape):
         with match(type(shape)):
             with Triangle:
@@ -137,22 +160,6 @@ Examples
                 return math.pi * shape.radius ** 2
             with _:
                 raise Exception('unknown shape')
-
-.. todo::
-
-   Show translated source code.
-
-::
-
-    import pypatt
-
-    @pypatt.transform
-    def factorial(num):
-        with match(num):
-            with 1:
-                return 1
-            with _:
-                return num * factorial(num - 1)
 
 Reference
 ---------
