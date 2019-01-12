@@ -1,16 +1,10 @@
-Pattern Matching Functional Implementation
-==========================================
-
-.. todo::
-
-   Discussion.
-
-Reference
----------
+Python Pattern Matching Reference
+=================================
 
 .. todo::
 
    autodoc api
+
 
 Future Work
 -----------
@@ -74,3 +68,16 @@ Future Work
   queries and want to express them in this way.
 
 * Why not instead map patterns to letters and do traditional regex-matching?
+
+* Support ellipsis-like syntax to match anything in the rest of the list or
+  tuple.
+
+* Match ``set`` expression?
+
+* Add "when" clause like match(expr, when(predicate))
+
+* Add ``or``/``and`` pattern-matching
+
+* Match ``dict`` expression?
+
+* Match regex?
