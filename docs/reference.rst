@@ -81,3 +81,31 @@ Future Work
 * Match ``dict`` expression?
 
 * Match regex?
+
+* API for matching: __match__ and Matcher object for state
+* Method of binding values to names
+* Algorithm for patterns (generic regex)
+* New match rule for "types"
+
+* Add __match__ predicate and refactor cases.
+* I wonder, can Pattern cases be refactored? Maybe "visit" should allow case
+  action generators? isinstance(result, types.GeneratorType)
+* Add Start and End to patterns.
+* Add Set predicate and action?
+  def set_predicate(matcher, value, pattern):
+      return isinstance(pattern, Set)
+
+  def set_action(matcher, value, pattern):
+      value_sequence = tuple(value)
+      for permutation in itertools.permutations(pattern):
+          try:
+              matcher.names.push()
+              matcher.visit(value_sequence, permutation)
+              matcher.names.pull()
+              return
+          except Mismatch:
+              matcher.names.undo()
+      else:
+          raise Mismatch
+* Add Mapping predicate and action?
+* Improve docstrings with examples.

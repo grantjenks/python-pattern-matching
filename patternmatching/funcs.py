@@ -1,38 +1,6 @@
-"""Functional Python Pattern Matching
+"""Python Pattern Matching
 
-Python pattern matching using a function-based approach.
-
-Python Pattern Matching contributions:
-
-* API for matching: __match__ and Matcher object for state
-* Method of binding values to names
-* Algorithm for patterns (generic regex)
-* New match rule for "types"
-
-TODO:
-
-* Add __match__ predicate and refactor cases.
-  * I wonder, can Pattern cases be refactored? Maybe "visit" should allow case
-    action generators? isinstance(result, types.GeneratorType)
-* Add Start and End to patterns.
-* Add Set predicate and action?
-  def set_predicate(matcher, value, pattern):
-      return isinstance(pattern, Set)
-
-  def set_action(matcher, value, pattern):
-      value_sequence = tuple(value)
-      for permutation in itertools.permutations(pattern):
-          try:
-              matcher.names.push()
-              matcher.visit(value_sequence, permutation)
-              matcher.names.pull()
-              return
-          except Mismatch:
-              matcher.names.undo()
-      else:
-          raise Mismatch
-* Add Mapping predicate and action?
-* Improve docstrings with examples.
+Python pattern matching library.
 
 """
 
@@ -954,3 +922,25 @@ class Matcher(object):
 matcher = Matcher()
 match = matcher.match
 bound = matcher.bound
+
+
+###############################################################################
+# Pattern Matching
+###############################################################################
+
+__all__ = [
+    'Matcher', 'match',
+    'Name', 'Binder', 'bind', 'Bounder', 'bound',
+    'Like', 'like', 'like_errors',
+    'literal_types',
+    'Anyone', 'anyone',
+    'Pattern', 'Exclude', 'exclude', 'Either', 'either', 'Group', 'group',
+    'Repeat', 'repeat', 'maybe', 'anything', 'something', 'padding',
+]
+
+__title__ = 'patternmatching'
+__version__ = '3.0.0'
+__build__ = 0x030000
+__author__ = 'Grant Jenks'
+__license__ = 'Apache 2.0'
+__copyright__ = '2015-2019, Grant Jenks'
