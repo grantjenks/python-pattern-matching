@@ -5,5 +5,3 @@
 
    tutorial
    reference
-   search
-   genindex

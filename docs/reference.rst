@@ -92,112 +92,115 @@ Future Work
   action generators? isinstance(result, types.GeneratorType)
 * Add Start and End to patterns.
 * Add Set predicate and action?
-  def set_predicate(matcher, value, pattern):
-      return isinstance(pattern, Set)
 
-  def set_action(matcher, value, pattern):
-      value_sequence = tuple(value)
-      for permutation in itertools.permutations(pattern):
-          try:
-              matcher.names.push()
-              matcher.visit(value_sequence, permutation)
-              matcher.names.pull()
-              return
-          except Mismatch:
-              matcher.names.undo()
-      else:
-          raise Mismatch
+.. code-block:: python
+
+    def set_predicate(matcher, value, pattern):
+        return isinstance(pattern, Set)
+
+    def set_action(matcher, value, pattern):
+        value_sequence = tuple(value)
+        for permutation in itertools.permutations(pattern):
+            try:
+                matcher.names.push()
+                matcher.visit(value_sequence, permutation)
+                matcher.names.pull()
+                return
+            except Mismatch:
+                matcher.names.undo()
+        else:
+            raise Mismatch
+
 * Add Mapping predicate and action?
 * Improve docstrings with examples.
-
-Tutorial
---------
 
 .. todo::
 
    Examples.
 
-import operator
-from collections import Sequence
+.. code-block:: python
 
-def make_operators(attrs):
-    "Add operators to attributes dictionary."
-    def method(function):
-        return lambda self, that: BinaryOperator(self, function, that)
-    def rmethod(function):
-        return lambda self, that: BinaryOperator(that, function, self)
-    for term in ['add', 'sub', 'mul', 'div']:
-        function = getattr(operator, term)
-        attrs['__%s__' % term] = method(function)
-        attrs['__r%s__' % term] = rmethod(function)
+    import operator
+    from collections import Sequence
 
-class MetaTypeOperators(type):
-    "Metaclass to add operators to type of types."
-    def __new__(cls, name, base, attrs):
-        make_operators(attrs)
-        return super(MetaTypeOperators, cls).__new__(cls, name, base, attrs)
+    def make_operators(attrs):
+        "Add operators to attributes dictionary."
+        def method(function):
+            return lambda self, that: BinaryOperator(self, function, that)
+        def rmethod(function):
+            return lambda self, that: BinaryOperator(that, function, self)
+        for term in ['add', 'sub', 'mul', 'div']:
+            function = getattr(operator, term)
+            attrs['__%s__' % term] = method(function)
+            attrs['__r%s__' % term] = rmethod(function)
 
-class MetaOperators(type):
-    "Metaclass to add operators to types."
-    __metaclass__ = MetaTypeOperators
-    def __new__(cls, name, base, attrs):
-        make_operators(attrs)
-        return super(MetaOperators, cls).__new__(cls, name, base, attrs)
-    def __repr__(self):
-        return self.__name__
+    class MetaTypeOperators(type):
+        "Metaclass to add operators to type of types."
+        def __new__(cls, name, base, attrs):
+            make_operators(attrs)
+            return super(MetaTypeOperators, cls).__new__(cls, name, base, attrs)
 
-class Record(object):
-    __metaclass__ = MetaOperators
-    __slots__ = ()
-    def __init__(self, *args):
-        assert len(self.__slots__) == len(args)
-        for field, value in zip(self.__slots__, args):
-            setattr(self, field, value)
-    def __getitem__(self, index):
-        return getattr(self, self.__slots__[index])
-    def __len__(self):
-        return len(self.__slots__)
-    def __eq__(self, that):
-        if not isinstance(that, type(self)):
-            return NotImplemented
-        return all(item == iota for item, iota in zip(self, that))
-    def __repr__(self):
-        args = ', '.join(repr(item) for item in self)
-        return '%s(%s)' % (type(self).__name__, args)
-    # pickle support
-    def __getstate__(self):
-        return tuple(self)
-    def __setstate__(self, state):
-        self.__init__(*state)
+    class MetaOperators(type):
+        "Metaclass to add operators to types."
+        __metaclass__ = MetaTypeOperators
+        def __new__(cls, name, base, attrs):
+            make_operators(attrs)
+            return super(MetaOperators, cls).__new__(cls, name, base, attrs)
+        def __repr__(self):
+            return self.__name__
 
-Sequence.register(Record)
+    class Record(object):
+        __metaclass__ = MetaOperators
+        __slots__ = ()
+        def __init__(self, *args):
+            assert len(self.__slots__) == len(args)
+            for field, value in zip(self.__slots__, args):
+                setattr(self, field, value)
+        def __getitem__(self, index):
+            return getattr(self, self.__slots__[index])
+        def __len__(self):
+            return len(self.__slots__)
+        def __eq__(self, that):
+            if not isinstance(that, type(self)):
+                return NotImplemented
+            return all(item == iota for item, iota in zip(self, that))
+        def __repr__(self):
+            args = ', '.join(repr(item) for item in self)
+            return '%s(%s)' % (type(self).__name__, args)
+        # pickle support
+        def __getstate__(self):
+            return tuple(self)
+        def __setstate__(self, state):
+            self.__init__(*state)
 
-class BinaryOperator(Record):
-    __slots__ = 'left', 'operator', 'right'
+    Sequence.register(Record)
 
-class Constant(Record):
-    __slots__ = 'value',
+    class BinaryOperator(Record):
+        __slots__ = 'left', 'operator', 'right'
 
-class Variable(Record):
-    __slots__ = 'name',
+    class Constant(Record):
+        __slots__ = 'value',
 
-class Term(Record):
-    __slots__ = 'value',
-    def __match__(self, matcher, value):
-        return matcher.visit(value, self.value)
+    class Variable(Record):
+        __slots__ = 'name',
 
-zero = Constant(0)
-one = Constant(1)
-x = Variable('x')
+    class Term(Record):
+        __slots__ = 'value',
+        def __match__(self, matcher, value):
+            return matcher.visit(value, self.value)
 
-from patternmatching import *
+    zero = Constant(0)
+    one = Constant(1)
+    x = Variable('x')
 
-assert match(zero + one, Constant + Constant)
-assert match(zero * Variable, zero * anyone)
+    from patternmatching import *
 
-alpha = Term(bind.alpha)
+    assert match(zero + one, Constant + Constant)
+    assert match(zero * Variable, zero * anyone)
 
-assert match(zero + zero, alpha + alpha)
+    alpha = Term(bind.alpha)
+
+    assert match(zero + zero, alpha + alpha)
 
 TODO
 ----
