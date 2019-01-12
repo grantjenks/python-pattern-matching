@@ -49,17 +49,20 @@ Features
 --------
 
 - Pure-Python
-- Fully Documented
-- 100% test coverage
-- Hours of stress testing
 - Developed on Python 3.7
 - Tested on CPython 3.4, 3.5, 3.6, 3.7 and PyPy3
 
-.. image:: https://api.travis-ci.org/grantjenks/python-pattern-matching.svg?branch=master
-   :target: http://www.grantjenks.com/docs/patternmatching/
+.. todo::
 
-.. image:: https://ci.appveyor.com/api/projects/status/github/grantjenks/python-pattern-matching?branch=master&svg=true
-   :target: http://www.grantjenks.com/docs/patternmatching/
+   - Fully Documented
+   - 100% test coverage
+   - Hours of stress testing
+
+   .. image:: https://api.travis-ci.org/grantjenks/python-pattern-matching.svg?branch=master
+      :target: http://www.grantjenks.com/docs/patternmatching/
+
+   .. image:: https://ci.appveyor.com/api/projects/status/github/grantjenks/python-pattern-matching?branch=master&svg=true
+      :target: http://www.grantjenks.com/docs/patternmatching/
 
 
 Quickstart
