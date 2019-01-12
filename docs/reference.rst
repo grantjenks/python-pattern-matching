@@ -20,7 +20,6 @@ Future Work
 * todo: bind.many
 
 .. code-block:: python
-   :linenos:
 
    class Many(object):
        def __init__(self, name, count=slice(None), values=(Anything,)):
