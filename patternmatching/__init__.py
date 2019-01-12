@@ -4,14 +4,13 @@ Python pattern matching library.
 
 """
 
-from collections import Sequence, Mapping
+from collections.abc import Sequence, Mapping
 from functools import wraps
-from sys import hexversion
 
 infinity = float('inf')
 
 
-class Record(object):
+class Record:
     """Mutable "named tuple"-like base class."""
     __slots__ = ()
 
@@ -61,9 +60,11 @@ class Mismatch(Exception):
 ###############################################################################
 
 def match_predicate(matcher, value, pattern):
+    "Return True if `pattern` has `__match__` attribute."
     return hasattr(pattern, '__match__')
 
 def match_action(matcher, value, pattern):
+    "Match `value` by calling `__match__` attribute of `pattern`."
     attr = getattr(pattern, '__match__')
     return attr(matcher, value)
 
@@ -82,7 +83,8 @@ class APattern(Sequence):
     Used by `Pattern` and `PatternMixin` types.
 
     """
-    __slots__ = '_details',
+    # pylint: disable=abstract-method
+    __slots__ = ('_details',)
 
     def __eq__(self, that):
         return self._details == that._details
@@ -196,25 +198,25 @@ class APattern(Sequence):
             else:
                 if offset >= len_value:
                     return
+
+                names.push()
+
+                try:
+                    matcher.visit(value[offset], item)
+                except Mismatch:
+                    pass
                 else:
-                    names.push()
+                    for end in visit(pattern, index + 1, offset + 1, 0):
+                        yield end
 
-                    try:
-                        matcher.visit(value[offset], item)
-                    except Mismatch:
-                        pass
-                    else:
-                        for end in visit(pattern, index + 1, offset + 1, 0):
-                            yield end
-
-                    names.undo()
+                names.undo()
 
                 return
 
         for end in visit(self, 0, 0, 0):
             return value[:end]
-        else:
-            raise Mismatch
+
+        raise Mismatch
 
 
 def make_tuple(value):
@@ -232,10 +234,9 @@ def make_tuple(value):
     """
     if isinstance(value, tuple):
         return value
-    elif isinstance(value, Sequence):
+    if isinstance(value, Sequence):
         return tuple(value)
-    else:
-        return (value,)
+    return (value,)
 
 
 class Pattern(APattern):
@@ -281,8 +282,7 @@ class PatternMixin(APattern):
     def __getitem__(self, index):
         if index == 0:
             return self
-        else:
-            raise IndexError
+        raise IndexError
 
     def __len__(self):
         return 1
@@ -379,12 +379,14 @@ class Repeat(PatternMixin):
 
     """
     def __init__(self, pattern=(), min=0, max=infinity, greedy=True):
+        # pylint: disable=redefined-builtin
         self._details = _Repeat(pattern, min, max, greedy)
 
     def __rmul__(self, that):
         return type(self)(sequence(that), *tuple(self._details)[1:])
 
     def __call__(self, min=0, max=infinity, greedy=True, pattern=()):
+        # pylint: disable=redefined-builtin
         return type(self)(pattern, min, max, greedy)
 
 repeat = Repeat()
@@ -433,7 +435,7 @@ group = Group()
 ###############################################################################
 
 class _Options(Record):
-    __slots__ = 'options',
+    __slots__ = ('options',)
 
 class Options(PatternMixin):
     "Pattern specifying a sequence of options to match."
@@ -478,7 +480,7 @@ class Name(Record):
     True
 
     """
-    __slots__ = 'value',
+    __slots__ = ('value',)
 
     def __match__(self, matcher, value):
         "Store `value` in `matcher` with `name` and return `value`."
@@ -498,7 +500,7 @@ def name_store(names, name, value):
             raise Mismatch
     names[name] = value
 
-class Binder(object):
+class Binder:
     """Binder objects return Name objects on attribute lookup.
 
     A few attributes behave specially:
@@ -523,10 +525,9 @@ class Binder(object):
     def __getattr__(self, name):
         if name == 'any':
             return anyone
-        elif name in ('push', 'pop', 'reset'):
+        if name in ('push', 'pop', 'reset'):
             raise AttributeError
-        else:
-            return Name(name)
+        return Name(name)
 
 bind = Binder()
 
@@ -537,14 +538,12 @@ bind = Binder()
 
 import re
 
-if hexversion > 0x03000000:
-    unicode = str
-
 like_errors = (
     AttributeError, LookupError, NotImplementedError, TypeError, ValueError
 )
 
 class Like(Record):
+    # pylint: disable=missing-docstring
     __slots__ = 'pattern', 'name'
 
     def __match__(self, matcher, value):
@@ -569,8 +568,8 @@ class Like(Record):
         pattern = self.pattern
         name = self.name
 
-        if isinstance(pattern, (str, unicode)):
-            if not isinstance(value, (str, unicode)):
+        if isinstance(pattern, str):
+            if not isinstance(value, str):
                 raise Mismatch
             func = lambda value: re.match(pattern, value)
         else:
@@ -626,10 +625,9 @@ def type_action(matcher, value, pattern):
     """
     if isinstance(value, type) and issubclass(value, pattern):
         return value
-    elif isinstance(value, pattern):
+    if isinstance(value, pattern):
         return value
-    else:
-        raise Mismatch
+    raise Mismatch
 
 base_cases.append(Case('types', type_predicate, type_action))
 
@@ -638,10 +636,7 @@ base_cases.append(Case('types', type_predicate, type_action))
 # Match Case: literals
 ###############################################################################
 
-if hexversion < 0x03000000:
-    literal_types = (type(None), bool, int, float, long, complex, basestring)
-else:
-    literal_types = (type(None), bool, int, float, complex, str, bytes)
+literal_types = (type(None), bool, int, float, complex, str, bytes)
 
 def literal_predicate(matcher, value, pattern):
     "Return True if `value` and `pattern` instance of `literal_types`."
@@ -663,8 +658,7 @@ def literal_action(matcher, value, pattern):
     """
     if value == pattern:
         return value
-    else:
-        raise Mismatch
+    raise Mismatch
 
 base_cases.append(Case('literals', literal_predicate, literal_action))
 
@@ -677,7 +671,7 @@ def equality_predicate(matcher, value, pattern):
     "Return True if `value` equals `pattern`."
     try:
         return value == pattern
-    except Exception:
+    except Exception:  # pylint: disable=broad-except
         return False
 
 def equality_action(matcher, value, pattern):
@@ -710,9 +704,6 @@ def sequence_predicate(matcher, value, pattern):
     """
     return isinstance(pattern, Sequence) and isinstance(value, type(pattern))
 
-if hexversion < 0x03000000:
-    from itertools import izip as zip
-
 def sequence_action(matcher, value, pattern):
     """Iteratively match items of `pattern` with `value` in sequence.
 
@@ -739,7 +730,7 @@ base_cases.append(Case('sequences', sequence_predicate, sequence_action))
 # Store bound names in a stack.
 ###############################################################################
 
-class Bounder(object):
+class Bounder:
     """Stack for storing names bound to values for `Matcher`.
 
     >>> Bounder()
@@ -786,12 +777,15 @@ class Bounder(object):
         return len(self._maps)
 
     def push(self, mapping):
+        # pylint: disable=missing-docstring
         self._maps.append(mapping)
 
     def pop(self):
+        # pylint: disable=missing-docstring
         return self._maps.pop()
 
     def reset(self, func=None):
+        # pylint: disable=missing-docstring
         if func is None:
             del self._maps[:]
         else:
@@ -814,27 +808,30 @@ class Bounder(object):
 ###############################################################################
 
 class MapStack(Mapping):
+    # pylint: disable=missing-docstring
     def __init__(self, maps=()):
         self._maps = list(maps) or [{}]
 
     def push(self):
+        # pylint: disable=missing-docstring
         self._maps.append({})
 
     def pull(self):
+        # pylint: disable=missing-docstring
         _maps = self._maps
         mapping = _maps.pop()
         accumulator = _maps[-1]
         accumulator.update(mapping)
 
     def undo(self):
+        # pylint: disable=missing-docstring
         return self._maps.pop()
 
     def __getitem__(self, key):
         for mapping in reversed(self._maps):
             if key in mapping:
                 return mapping[key]
-        else:
-            raise KeyError(key)
+        raise KeyError(key)
 
     def __setitem__(self, key, value):
         self._maps[-1][key] = value
@@ -843,6 +840,7 @@ class MapStack(Mapping):
         del self._maps[-1][key]
 
     def pop(self, key, default=None):
+        # pylint: disable=missing-docstring
         return self._maps[-1].pop(key, default)
 
     def __iter__(self):
@@ -855,6 +853,7 @@ class MapStack(Mapping):
         return '%s(%r)' % (type(self).__name__, self._maps)
 
     def get(self, key, default=None):
+        # pylint: disable=missing-docstring
         return self[key] if key in self else default
 
     def __contains__(self, key):
@@ -864,9 +863,11 @@ class MapStack(Mapping):
         return any(self._maps)
 
     def copy(self):
+        # pylint: disable=missing-docstring
         return dict(self)
 
     def reset(self):
+        # pylint: disable=missing-docstring
         del self._maps[1:]
         self._maps[0].clear()
 
@@ -875,7 +876,7 @@ class MapStack(Mapping):
 # Matcher objects put it all together.
 ###############################################################################
 
-class Matcher(object):
+class Matcher:
     """Container for match function state with list of pattern cases.
 
     >>> matcher = Matcher()
@@ -901,6 +902,7 @@ class Matcher(object):
         self.names = MapStack()
 
     def match(self, value, pattern):
+        # pylint: disable=missing-docstring
         names = self.names
         try:
             self.visit(value, pattern)
@@ -913,6 +915,7 @@ class Matcher(object):
         return True
 
     def visit(self, value, pattern):
+        # pylint: disable=missing-docstring
         for name, predicate, action in self.cases:
             if predicate(self, value, pattern):
                 return action(self, value, pattern)
