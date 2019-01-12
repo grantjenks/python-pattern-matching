@@ -28,9 +28,9 @@ if CPY2:
         'trybind', 'uncompile',
     ])
 
-__title__ = 'PatternMatching'
-__version__ = '2.0.0'
-__build__ = 0x020000
+__title__ = 'patternmatching'
+__version__ = '3.0.0'
+__build__ = 0x030000
 __author__ = 'Grant Jenks'
 __license__ = 'Apache 2.0'
-__copyright__ = 'Copyright 2015-2016 Grant Jenks'
+__copyright__ = '2015-2019, Grant Jenks'

@@ -796,7 +796,7 @@ class Bounder(object):
     def __getattr__(self, attr):
         try:
             return self._maps[-1][attr]
-        except IndexError, KeyError:
+        except (IndexError, KeyError):
             raise AttributeError(attr)
 
     def __getitem__(self, key):
