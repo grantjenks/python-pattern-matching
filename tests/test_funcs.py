@@ -1,4 +1,4 @@
-from nose.tools import raises
+import pytest
 
 import random
 from collections import namedtuple
@@ -85,12 +85,12 @@ def test_basic():
             assert match_basic(value) == result
 
 
-@raises(AttributeError)
 def test_bind_result():
-    if match(0, bind.push):
-        return 'zero'
-    else:
-        return 'nonzero'
+    with pytest.raises(AttributeError):
+        if match(0, bind.push):
+            return 'zero'
+        else:
+            return 'nonzero'
 
 
 def test_bind_any():
@@ -132,8 +132,3 @@ def test_bind_padding_like():
     assert match([3, 5, 3, 5, 3, 5, 2], pattern)
     assert bound.value == 5
     assert bound.other == 3
-
-
-if __name__ == '__main__':
-    import nose
-    nose.runmodule()
