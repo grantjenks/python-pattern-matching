@@ -147,8 +147,7 @@ disable=print-statement,
         no-member,
         protected-access,
         wrong-import-position,
-        inconsistent-return-statements,
-        dangerous-default-value
+        inconsistent-return-statements
 
 # Enable the message, report, category or checker with the given id(s). You can
 # either give multiple identifier separated by comma (,) or put this option

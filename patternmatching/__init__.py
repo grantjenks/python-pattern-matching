@@ -47,7 +47,7 @@ class Case(Record):
     """
     __slots__ = 'name', 'predicate', 'action'
 
-base_cases = []
+default_cases = []
 
 
 class Mismatch(Exception):
@@ -68,7 +68,7 @@ def match_action(matcher, value, pattern):
     attr = getattr(pattern, '__match__')
     return attr(matcher, value)
 
-base_cases.append(Case('__match__', match_predicate, match_action))
+default_cases.append(Case('__match__', match_predicate, match_action))
 
 
 ###############################################################################
@@ -629,7 +629,7 @@ def type_action(matcher, value, pattern):
         return value
     raise Mismatch
 
-base_cases.append(Case('types', type_predicate, type_action))
+default_cases.append(Case('types', type_predicate, type_action))
 
 
 ###############################################################################
@@ -660,7 +660,7 @@ def literal_action(matcher, value, pattern):
         return value
     raise Mismatch
 
-base_cases.append(Case('literals', literal_predicate, literal_action))
+default_cases.append(Case('literals', literal_predicate, literal_action))
 
 
 ###############################################################################
@@ -690,7 +690,7 @@ def equality_action(matcher, value, pattern):
     """
     return value
 
-base_cases.append(Case('equality', equality_predicate, equality_action))
+default_cases.append(Case('equality', equality_predicate, equality_action))
 
 
 ###############################################################################
@@ -723,7 +723,7 @@ def sequence_action(matcher, value, pattern):
     pairs = zip(value, pattern)
     return tuple(matcher.visit(item, iota) for item, iota in pairs)
 
-base_cases.append(Case('sequences', sequence_predicate, sequence_action))
+default_cases.append(Case('sequences', sequence_predicate, sequence_action))
 
 
 ###############################################################################
@@ -896,7 +896,8 @@ class Matcher:
     5
 
     """
-    def __init__(self, cases=base_cases):
+    def __init__(self, cases=None):
+        cases = default_cases if cases is None else cases
         self.cases = cases
         self.bound = Bounder()
         self.names = MapStack()
