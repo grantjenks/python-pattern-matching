@@ -699,8 +699,8 @@ default_cases.append(Case('equality', equality_predicate, equality_action))
 ###############################################################################
 
 def sequence_predicate(matcher, value, pattern):
-    """Return True if `value` is instance of type of `pattern` and `pattern` is
-    instance of Sequence and lengths are equal.
+    """Return True if `pattern` is instance of Sequence and `value` is instance of
+    type of `pattern`.
 
     """
     return isinstance(pattern, Sequence) and isinstance(value, type(pattern))
