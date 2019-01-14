@@ -4,9 +4,11 @@ Python pattern matching library.
 
 """
 
+import logging
 from collections.abc import Sequence, Mapping
 from functools import wraps
 
+log = logging.getLogger(__name__)
 infinity = float('inf')
 
 
@@ -134,6 +136,7 @@ class APattern(Sequence):
                 return
 
             item = pattern[index]
+            log.debug('%r: %r %r %r', item, index, offset, count)
 
             if isinstance(item, Repeat):
                 if count > item.max:
@@ -918,9 +921,16 @@ class Matcher:
 
     def visit(self, value, pattern):
         # pylint: disable=missing-docstring
+        log.debug('visit(%r, %r)', value, pattern)
         for name, predicate, action in self.cases:
-            if predicate(self, value, pattern):
-                return action(self, value, pattern)
+            clause = predicate(self, value, pattern)
+            template = 'predicate(%r, %r, %r) -> %r'
+            log.debug(template, name, value, pattern, clause)
+            if clause:
+                result = action(self, value, pattern)
+                template = 'action(%r, %r, %r) -> %r'
+                log.debug(template, self, value, pattern, result)
+                return result
         raise Mismatch
 
 
