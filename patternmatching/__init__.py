@@ -15,6 +15,7 @@ class Record:
     __slots__ = ()
 
     def __init__(self, *args):
+        assert len(self.__slots__) == len(args)
         for field, value in zip(self.__slots__, args):
             setattr(self, field, value)
 
