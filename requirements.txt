@@ -1,6 +1,10 @@
+-e .
+blue
 coverage
 doc8
-gj
+flake8
+ipython
+jedi==0.17.*  # Remove after IPython bug fixed.
 pylint
 pytest
 pytest-cov
