@@ -948,4 +948,4 @@ __version__ = '3.0.1'
 __build__ = 0x030001
 __author__ = 'Grant Jenks'
 __license__ = 'Apache 2.0'
-__copyright__ = '2015-2019, Grant Jenks'
+__copyright__ = '2015-2021, Grant Jenks'

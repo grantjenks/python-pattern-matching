@@ -159,7 +159,7 @@ Project Links
 Python Pattern Matching License
 -------------------------------
 
-Copyright 2015-2019, Grant Jenks
+Copyright 2015-2021, Grant Jenks
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use
 this file except in compliance with the License.  You may obtain a copy of the
