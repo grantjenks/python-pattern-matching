@@ -57,7 +57,6 @@ default_cases = []
 
 class Mismatch(Exception):
     "Raised by `action` functions of `Case` records to abort on mismatch."
-    pass
 
 
 ###############################################################################
@@ -120,6 +119,7 @@ class APattern(Sequence):
         True
 
         """
+        # pylint: disable=too-many-return-statements
         names = matcher.names
         len_value = len(value)
 
@@ -136,6 +136,7 @@ class APattern(Sequence):
         # the needed backtracking.
 
         def visit(pattern, index, offset, count):
+            # pylint: disable=too-many-branches
             len_pattern = len(pattern)
 
             if index == len_pattern:
@@ -341,7 +342,6 @@ class Anyone(PatternMixin):
 
     def __match__(self, matcher, value):
         "Pass because `anyone` matches any one thing."
-        pass
 
     def __repr__(self):
         return 'anyone'
@@ -482,7 +482,6 @@ class Options(PatternMixin):
 
 class Either(Options):
     "Pattern specifying that any of options may match."
-    pass
 
 
 either = Either()
@@ -490,7 +489,6 @@ either = Either()
 
 class Exclude(Options):
     "Pattern specifying that none of options may match."
-    pass
 
 
 exclude = Exclude()
@@ -571,8 +569,8 @@ bind = Binder()
 # Match Case: likes
 ###############################################################################
 
-import functools  # noqa: E402
-import re  # noqa: E402
+import functools  # noqa: E402  # pylint: disable=wrong-import-position
+import re  # noqa: E402  # pylint: disable=wrong-import-position
 
 like_errors = (
     AttributeError,
@@ -619,10 +617,10 @@ class Like(Record):
         try:
             result = func(value)
         except like_errors:
-            raise Mismatch
+            raise Mismatch from None
 
         if not result:
-            raise Mismatch
+            raise Mismatch from None
 
         if name is not None:
             name_store(matcher.names, name, result)
@@ -812,13 +810,13 @@ class Bounder:
         try:
             return self._maps[-1][attr]
         except (IndexError, KeyError):
-            raise AttributeError(attr)
+            raise AttributeError(attr) from None
 
     def __getitem__(self, key):
         try:
             return self._maps[-1][key]
         except IndexError:
-            raise KeyError(key)
+            raise KeyError(key) from None
 
     def __eq__(self, that):
         return self._maps[-1] == that
@@ -833,15 +831,19 @@ class Bounder:
         return len(self._maps)
 
     def push(self, mapping):
-        # pylint: disable=missing-docstring
+        """Push mapping."""
         self._maps.append(mapping)
 
     def pop(self):
-        # pylint: disable=missing-docstring
+        """Pop last mapping."""
         return self._maps.pop()
 
-    def reset(self, func=None):
-        # pylint: disable=missing-docstring
+    def reset(self, func=None):  # pylint: disable=R1710
+        """Remove all mappings.
+
+        Works also as a decorator.
+
+        """
         if func is None:
             del self._maps[:]
         else:
@@ -978,7 +980,7 @@ class Matcher:
 
     def visit(self, value, pattern):
         # pylint: disable=missing-docstring
-        for name, predicate, action in self.cases:
+        for _, predicate, action in self.cases:
             if predicate(self, value, pattern):
                 return action(self, value, pattern)
         raise Mismatch
