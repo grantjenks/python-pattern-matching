@@ -49,8 +49,8 @@ Features
 --------
 
 - Pure-Python
-- Developed on Python 3.7
-- Tested on CPython 3.4, 3.5, 3.6, 3.7 and PyPy3
+- Developed on Python 3.9
+- Tested on CPython 3.6, 3.7, 3.8, and 3.9
 
 .. todo::
 
