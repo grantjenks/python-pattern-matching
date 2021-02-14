@@ -571,7 +571,8 @@ bind = Binder()
 # Match Case: likes
 ###############################################################################
 
-import re
+import functools  # noqa: E402
+import re  # noqa: E402
 
 like_errors = (
     AttributeError,
@@ -611,7 +612,7 @@ class Like(Record):
         if isinstance(pattern, str):
             if not isinstance(value, str):
                 raise Mismatch
-            func = lambda value: re.match(pattern, value)
+            func = functools.partial(re.match, pattern)
         else:
             func = pattern
 
