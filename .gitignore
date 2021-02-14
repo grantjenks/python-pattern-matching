@@ -1,16 +1,20 @@
 # Python byte-code
 *.py[co]
 
-# Python virtualenv directories.
+# virutalenv directories
 /env*/
 
-# coverage files
-.coverage
-
-# setup sdist, test and upload directories
+# test files/directories
+/.cache/
+.coverage*
+.pytest_cache/
 /.tox/
+
+# setup and upload directories
 /build/
 /dist/
 /patternmatching.egg-info/
+/docs/_build/
 
+# macOS metadata
 .DS_Store
