@@ -1,8 +1,9 @@
-import pytest
-
 import random
 from collections import namedtuple
-from patternmatching import match, like, bind, bound, repeat, group, padding
+
+import pytest
+
+from patternmatching import bind, bound, group, like, match, padding, repeat
 
 Point = namedtuple('Point', 'x y z t')
 

@@ -4,7 +4,7 @@ Python pattern matching library.
 
 """
 
-from collections.abc import Sequence, Mapping
+from collections.abc import Mapping, Sequence
 from functools import wraps
 
 infinity = float('inf')
