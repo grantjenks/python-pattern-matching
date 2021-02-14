@@ -73,8 +73,8 @@ matching`_.
 
 .. code-block:: python
 
-    >>> from pypatt import match, bind, bound, like
-    >>> help(match)
+    >>> from patternmatching import match, bind, bound, like
+    >>> help(match)                     # doctest: +SKIP
 
 
 Alternative Packages
