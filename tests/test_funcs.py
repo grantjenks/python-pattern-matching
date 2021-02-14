@@ -128,7 +128,13 @@ def test_bind_padding_name():
 def test_bind_padding_like():
     def odd_num(value):
         return value % 2 and value
-    pattern = padding + [like(odd_num, 'value'), like(odd_num, 'other'), like(odd_num, 'value'), 2]
+
+    pattern = padding + [
+        like(odd_num, 'value'),
+        like(odd_num, 'other'),
+        like(odd_num, 'value'),
+        2,
+    ]
     assert match([3, 5, 3, 5, 3, 5, 2], pattern)
     assert bound.value == 5
     assert bound.other == 3
