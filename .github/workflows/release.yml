@@ -1,0 +1,55 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+    branches:
+      - master
+    paths:
+      - RELEASE
+  workflow_dispatch: {}
+
+permissions:
+  contents: write  # for creating the matching tag and GitHub release
+  id-token: write  # for PyPI trusted publishing
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+          check-latest: true
+
+      - name: Set up uv
+        # v10.0.1
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d
+
+      - name: Install build backend
+        run: uvx --from build pyproject-build --version
+
+      - name: Build sdist and wheel
+        run: uvx --from build pyproject-build
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          verbose: true
+
+      - name: Create GitHub release
+        if: startsWith(github.ref, 'refs/heads/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(python -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')
+          test "$(head -1 RELEASE | tr -d '[:space:]')" = "$version"
+          gh release create "v$version" \
+            --target "$GITHUB_SHA" \
+            --title "Python Pattern Matching $version" \
+            --generate-notes

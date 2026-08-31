@@ -1,0 +1,53 @@
+[project]
+name = "patternmatching"
+version = "3.1.0"
+description = "Composable pattern matching and regular expressions for Python objects."
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+    { name = "Grant Jenks" },
+]
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+keywords = ["pattern-matching", "regular-expressions", "unification"]
+urls.Homepage = "https://github.com/grantjenks/python-pattern-matching"
+urls."Issue Tracker" = "https://github.com/grantjenks/python-pattern-matching/issues"
+urls."Source Code" = "https://github.com/grantjenks/python-pattern-matching"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+    "nox>=2024.4.15",
+]
+
+[tool.setuptools.packages.find]
+include = ["patternmatching*"]
+
+[tool.pytest.ini_options]
+addopts = [
+    "--cov=patternmatching",
+    "--cov-branch",
+    "--cov-report=term-missing",
+    "--cov-fail-under=90",
+    "--doctest-modules",
+]
+pythonpath = ["."]
+testpaths = ["patternmatching", "tests"]
+
+[build-system]
+requires = ["setuptools>=77", "wheel"]
+build-backend = "setuptools.build_meta"

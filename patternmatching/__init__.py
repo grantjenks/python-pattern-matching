@@ -997,7 +997,7 @@ bound = matcher.bound
 
 # fmt: off
 __all__ = [
-    'Matcher', 'match',
+    'Matcher', 'Mismatch', 'match',
     'Name', 'Binder', 'bind', 'Bounder', 'bound',
     'Like', 'like', 'like_errors',
     'literal_types',
@@ -1008,8 +1008,8 @@ __all__ = [
 # fmt: on
 
 __title__ = 'patternmatching'
-__version__ = '3.0.1'
-__build__ = 0x030001
+__version__ = '3.1.0'
+__build__ = 0x030100
 __author__ = 'Grant Jenks'
 __license__ = 'Apache 2.0'
-__copyright__ = '2015-2021, Grant Jenks'
+__copyright__ = '2015-2026, Grant Jenks'

@@ -1,20 +1,12 @@
-# Python byte-code
-*.py[co]
-
-# virutalenv directories
-/env*/
-
-# test files/directories
-/.cache/
-.coverage*
+__pycache__/
+*.py[codz]
+*.so
+build/
+dist/
+*.egg-info/
+.nox/
 .pytest_cache/
-/.tox/
-
-# setup and upload directories
-/build/
-/dist/
-/patternmatching.egg-info/
-/docs/_build/
-
-# macOS metadata
-.DS_Store
+.coverage
+.venv/
+.ruff_cache/
+.pypirc
