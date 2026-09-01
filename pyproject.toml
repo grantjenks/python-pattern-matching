@@ -1,6 +1,6 @@
 [project]
 name = "patternmatching"
-version = "3.1.0"
+version = "4.0.0"
 description = "Composable pattern matching and regular expressions for Python objects."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -21,6 +21,7 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
     "Topic :: Software Development :: Libraries :: Python Modules",
+    "Typing :: Typed",
 ]
 keywords = ["pattern-matching", "regular-expressions", "unification"]
 urls.Homepage = "https://github.com/grantjenks/python-pattern-matching"
@@ -36,6 +37,9 @@ dev = [
 
 [tool.setuptools.packages.find]
 include = ["patternmatching*"]
+
+[tool.setuptools.package-data]
+patternmatching = ["py.typed", "*.pyi"]
 
 [tool.pytest.ini_options]
 addopts = [

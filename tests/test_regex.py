@@ -69,7 +69,7 @@ def test_either_repr():
     assert repr(pm.either) == 'Either()'
 
 
-@pm.bound.reset
+@pm.bound.scope()
 def run(*args):
     pattern, value, result = args
     if result is None:
